@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct LikesYouView: View {
+    @EnvironmentObject var chatVM: ChatViewModel
     @EnvironmentObject var likerVM: LikerViewModel
     @State var counter = 0
     @State var offset = CGSize.zero
@@ -102,6 +103,7 @@ struct LikesYouView: View {
                 }
                 if showWaitView {
                     WaitingForMatchView(showWaitView: $showWaitView)
+                        .environmentObject(self.chatVM)
                         .environmentObject(self.likerVM)
                 }
             }

@@ -116,7 +116,7 @@ struct InviteCardView: View {
     let user: User
     var body: some View {
         HStack (spacing: 20) {
-            SystemWebImage(url: user.profURL, radius: 5)
+            BarWebImage(url: user.profURL, radius: 5)
                 .frame(height: UIScreen.main.bounds.height / 6)
             Rectangle()
                 .frame(width: 1, height: 100)

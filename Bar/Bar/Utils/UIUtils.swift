@@ -91,7 +91,7 @@ struct SystemImage: View {
     }
 }
 
-struct SystemWebImage: View {
+struct BarWebImage: View {
     let url: String
     let radius: CGFloat
     var body: some View {
@@ -103,7 +103,6 @@ struct SystemWebImage: View {
             .clipped()
     }
 }
-
 
 struct StandardButtonView: View {
     let text: String

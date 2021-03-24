@@ -7,20 +7,24 @@
 
 import Foundation
 import SwiftUI
+import SDWebImageSwiftUI
 
 struct UserView: View {
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     @State var user: User
     @State var invitable: Bool
     @State var isPreview: Bool
     @Binding var show: Bool
     @State var inviteType: InviteType = .normal
-    @State var presentingModal = false
+    @State var showInviteView = false
     @State var startIndex = 0
     @State var comment: String = ""
     @State var sendHeading: String = ""
     @State var sendSubHeading: String = ""
     @State var showChat = false
-    @EnvironmentObject var likerViewModel: LikerViewModel
     
     var body: some View {
         ZStack {
@@ -41,7 +45,7 @@ struct UserView: View {
                         VStack {
                             TopBulletsView(user: user)
                             if user.bio != "" { BioView(bio: user.bio) }
-                            PersonalityCardsView(user: user, invitable: $invitable, presentingModal: $presentingModal, inviteType: $inviteType, heading: $sendHeading, subHeading: $sendSubHeading, isPreview: $isPreview)
+                            PersonalityCardsView(user: user, invitable: $invitable, showInviteView: $showInviteView, inviteType: $inviteType, heading: $sendHeading, subHeading: $sendSubHeading, isPreview: $isPreview)
                                 .padding(.vertical)
                         }
                         .padding()
@@ -58,7 +62,7 @@ struct UserView: View {
                 VStack (spacing: 15) {
                     if self.invitable {
                         Button(action: {
-                            self.presentingModal = true
+                            self.showInviteView = true
                             self.inviteType = .normal
                         }, label: {
                             Text(self.invitable ? "Invite For a Drink" : "Start Your Conversation")
@@ -72,7 +76,10 @@ struct UserView: View {
                         })
                     } else if !self.isPreview {
                         NavigationLink(
-                            destination: ChatView(chatTo: user, showChat: $showChat, chatVM: ChatViewModel(recipient: self.user)).environmentObject(self.likerViewModel), isActive: $showChat,
+                            destination: ChatView(showChat: $showChat)
+                                .environmentObject(self.chatVM)
+                                .environmentObject(self.likerVM)
+                            , isActive: $showChat,
                             label: {
                                 StandardButtonView(text: "Start Your Conversation")
                                     .padding(.horizontal, 30)
@@ -93,8 +100,8 @@ struct UserView: View {
                                 endPoint: .init(x: 0, y: 0.8)))
             }
             VStack {
-                if presentingModal {
-                    SendInviteView(user: user, heading: $sendHeading, subheading: $sendSubHeading, inviteType: $inviteType, comment: $comment, showInviteView: $presentingModal)
+                if showInviteView {
+                    SendInviteView(user: user, heading: $sendHeading, subheading: $sendSubHeading, inviteType: $inviteType, comment: $comment, showInviteView: $showInviteView)
                 }
             }.transition(.opacity).animation(.easeInOut)
         }
@@ -110,7 +117,12 @@ struct PictureViews: View {
     
     var body: some View {
         ZStack {
-            SystemWebImage(url: pvUser.imageLinks[photoIndex], radius: 0)
+            ForEach(0..<pvUser.imageLinks.count) { i in
+                let link = self.pvUser.imageLinks[i]
+                BarWebImage(url: link, radius: 0)
+                    .opacity(self.photoIndex == i ? 1 : 0)
+                    .clipped()
+            }
             Rectangle()
                 .fill(LinearGradient(
                         gradient: .init(colors: [Color.black.opacity(0), Color.black.opacity(0.7)]),
@@ -122,22 +134,28 @@ struct PictureViews: View {
                 Spacer()
                 // rectangles for tapping
                 HStack {
-                    Rectangle()
-                        .opacity(0.01)
-                        .onTapGesture {
-                            if photoIndex > 0 {
-                                self.photoIndex -= 1
-                            }
-                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    VStack {
+                        Color.clear
+                            .frame(maxHeight: .infinity)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if photoIndex > 0 {
+                            self.photoIndex -= 1
                         }
-                    Rectangle()
-                        .opacity(0.01)
-                        .onTapGesture {
-                            if photoIndex < pvUser.imageLinks.count - 1 {
-                                self.photoIndex += 1
-                            }
-                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    }
+                    VStack {
+                        Color.clear
+                            .frame(maxHeight: .infinity)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if photoIndex < pvUser.imageLinks.count - 1 {
+                            self.photoIndex += 1
                         }
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    }
                 }
                 HStack {
                     VStack (alignment: .leading) {
@@ -150,7 +168,6 @@ struct PictureViews: View {
                         if showsButton {
                             Spacer()
                                 .frame(height: 30)
-                            
                         }
                     }
                     Spacer()
@@ -258,54 +275,19 @@ struct BioView: View {
 }
 
 struct PersonalityCardsView: View {
+    @EnvironmentObject var userVM: UserViewModel
     let user: User
     @State private var rightAlign = true
     @Binding var invitable: Bool
-    @Binding var presentingModal: Bool
+    @Binding var showInviteView: Bool
     @Binding var inviteType: InviteType
     @Binding var heading: String
     @Binding var subHeading: String
     @Binding var isPreview: Bool
     
-    func cardsFormatter(user: User) -> (headings: [String], subheadings: [String], count: Int) {
-        var headings = [""]
-        var subheadings = [""]
-        var count = 0
-        if user.order != "" {
-            headings.append("my usual order")
-            subheadings.append("\(user.order)")
-            count += 1
-        }
-        if user.hobby != "" {
-            headings.append("a hobby of mine")
-            subheadings.append("\(user.hobby)")
-            count += 1
-        }
-        if user.quotes != "" {
-            headings.append("something i quote way too often")
-            subheadings.append("\(user.quotes)")
-            count += 1
-        }
-        if user.guiltyPleasure != "" {
-            headings.append("guilty pleasure")
-            subheadings.append("\(user.guiltyPleasure)")
-            count += 1
-        }
-        if user.forFun != "" {
-            headings.append("my idea of fun")
-            subheadings.append("\(user.forFun)")
-            count += 1
-        }
-        if user.customPrompts.count != 0, user.customResponses.count != 0 {
-            headings.append(contentsOf: user.customPrompts)
-            subheadings.append(contentsOf: user.customResponses)
-            count += user.customResponses.count
-        }
-        return (headings, subheadings, count)
-    }
     var body: some View {
         VStack (spacing: 10) {
-            let cardsInfo = cardsFormatter(user: user)
+            let cardsInfo = self.userVM.cardsFormatter(user: user)
             let headings = cardsInfo.headings
             let subheadings = cardsInfo.subheadings
             HStack {
@@ -323,7 +305,7 @@ struct PersonalityCardsView: View {
             }
             if cardsInfo.count > 0 {
                 ForEach(1...cardsInfo.count, id: \.self) { i in
-                    PersonalityCardView(headingLabel: headings[i], quoteLabel: subheadings[i], alternator: i % 2, invitable: $invitable, presentingModal: $presentingModal, inviteType: $inviteType, heading: $heading, subHeading: $subHeading)
+                    PersonalityCardView(headingLabel: headings[i], quoteLabel: subheadings[i], alternator: i % 2, invitable: $invitable, showInviteView: $showInviteView, inviteType: $inviteType, heading: $heading, subHeading: $subHeading)
                 }
                 Spacer().frame(height: self.isPreview ? 0 : 40)
             }
@@ -338,7 +320,7 @@ struct PersonalityCardView: View {
     @State private var offset = CGSize.zero
     @State private var backDisplayed = false
     @Binding var invitable: Bool
-    @Binding var presentingModal: Bool
+    @Binding var showInviteView: Bool
     @Binding var inviteType: InviteType
     @Binding var heading: String
     @Binding var subHeading: String
@@ -350,14 +332,40 @@ struct PersonalityCardView: View {
                 .cornerRadius(5)
             HStack {
                 Spacer()
-                RespondButtonView(headingLabel: headingLabel, quoteLabel: quoteLabel, presentingModal: $presentingModal, inviteType: $inviteType, heading: $heading, subHeading: $subHeading)
+                RespondButtonView(headingLabel: headingLabel, quoteLabel: quoteLabel, showInviteView: $showInviteView, inviteType: $inviteType, heading: $heading, subHeading: $subHeading)
             }
             VStack {
-                if alternator == 1 {
-                    RightAlignCardView
-                } else {
-                    LeftAlignCardView
+                VStack (alignment: self.alternator == 1 ? .leading : .trailing, spacing: 3) {
+                    Text("\(self.headingLabel.uppercased())")
+                        .font(Font.custom("Avenir Next Demi Bold", size: 12))
+                        .tracking(1)
+                        .foregroundColor(.white)
+                    HStack (alignment: .top) {
+                        if self.alternator == 0 {
+                            Spacer()
+                        } else {
+                            Image("quotes")
+                                .resizable()
+                                .frame(width: 35, height: 28)
+                        }
+                        Text("\(self.quoteLabel.uppercased())")
+                            .font(Font.custom("Avenir Next Bold", size: 16))
+                            .tracking(1.5)
+                            .foregroundColor(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if self.alternator == 1 {
+                            Spacer()
+                        } else {
+                            Image("backquotes")
+                                .resizable()
+                                .frame(width: 35, height: 28)
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(10)
+                .background(Color("Accent Blue"))
+                .cornerRadius(5)
             }
             .offset(x: self.offset.width, y: 0)
             .animation(.easeInOut)
@@ -385,61 +393,12 @@ struct PersonalityCardView: View {
                     )
         }
     }
-    
-    private var RightAlignCardView: some View {
-        VStack (alignment: .leading, spacing: 3) {
-            Text("\(self.headingLabel.uppercased())")
-                .font(Font.custom("Avenir Next Demi Bold", size: 12))
-                .tracking(1)
-                .foregroundColor(.white)
-            HStack (alignment: .top) {
-                Image("quotes")
-                    .resizable()
-                    .frame(width: 35, height: 28)
-                Text("\(self.quoteLabel.uppercased())")
-                    .font(Font.custom("Avenir Next Bold", size: 16))
-                    .tracking(1.5)
-                    .foregroundColor(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(10)
-        .background(Color("Accent Blue"))
-        .cornerRadius(5)
-    }
-    
-    private var LeftAlignCardView: some View {
-        VStack (alignment: .trailing, spacing: 3) {
-            Text("\(self.headingLabel.uppercased())")
-                .font(Font.custom("Avenir Next Demi Bold", size: 12))
-                .tracking(1)
-                .foregroundColor(.white)
-            HStack (alignment: .top) {
-                Spacer()
-                Text("\(self.quoteLabel.uppercased())")
-                    .font(Font.custom("Avenir Next Bold", size: 16))
-                    .tracking(1.5)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.trailing)
-                    .fixedSize(horizontal: false, vertical: true)
-                Image("backquotes")
-                    .resizable()
-                    .frame(width: 35, height: 28)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(10)
-        .background(Color("Accent Blue"))
-        .cornerRadius(5)
-    }
 }
 
 struct RespondButtonView: View {
     let headingLabel: String
     let quoteLabel: String
-    @Binding var presentingModal: Bool
+    @Binding var showInviteView: Bool
     @Binding var inviteType: InviteType
     @Binding var heading: String
     @Binding var subHeading: String
@@ -447,7 +406,7 @@ struct RespondButtonView: View {
     var body: some View {
         HStack {
             Button(action: {
-                self.presentingModal = true
+                self.showInviteView = true
                 self.inviteType = .like
                 self.heading = headingLabel
                 self.subHeading = quoteLabel
@@ -461,7 +420,7 @@ struct RespondButtonView: View {
                 .foregroundColor(.white)
                 .frame(width: 1, height: 40)
             Button(action: {
-                self.presentingModal = true
+                self.showInviteView = true
                 self.inviteType = .comment
                 self.heading = headingLabel
                 self.subHeading = quoteLabel

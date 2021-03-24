@@ -10,10 +10,10 @@ import SwiftUI
 import Firebase
 
 struct ProfileView: View {
-    @State var selected = 0
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var profileViewModel: ProfileViewModel
     @Binding var isShowingProfile: Bool
-    @ObservedObject var profileViewModel = ProfileViewModel()
+    @State var selected = 0
     
     var body: some View {
         ZStack {
@@ -22,14 +22,14 @@ struct ProfileView: View {
             ScrollView (.vertical) {
                 VStack {
                     ProfilePictureView(viewModel: self.profileViewModel)
-                    SystemText(text: "\(cuvm.currentUser.firstName) \(cuvm.currentUser.lastName)", fontstyle: .headerDemiBold)
+                    SystemText(text: "\(currentUserVM.currentUser.firstName) \(currentUserVM.currentUser.lastName)", fontstyle: .headerDemiBold)
                     CloutView()
-                    MenuSelectionView(selected: $selected, cuvm: cuvm)
+                    MenuSelectionView(selected: $selected)
                         .padding(.vertical, 20)
                     if self.selected == 0 {
                         PreferencesView()
                     } else if self.selected == 1 {
-                        AboutView(pvm: profileViewModel)
+                        AboutView()
                     } else if self.selected == 2 {
                         SettingsView()
                     }
@@ -38,29 +38,29 @@ struct ProfileView: View {
                 .padding()
             }
         }
-        .navigationBarTitle("\(cuvm.currentUser.firstName)'s Profile", displayMode: .inline)
+        .navigationBarTitle("\(currentUserVM.currentUser.firstName)'s Profile", displayMode: .inline)
         .animation(.easeInOut)
         .onAppear {
-            self.profileViewModel.setProfPicURL(urlString: cuvm.currentUser.profURL)
+            self.profileViewModel.setProfPicURL(urlString: currentUserVM.currentUser.profURL)
         }
         .onDisappear {
             DispatchQueue.main.async {
-                self.cuvm.updateDB()
+                self.currentUserVM.updateDB()
             }
         }
     }
 }
 
 struct CloutView: View {
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     
     var body: some View {
         HStack {
-            IconLabelView(number: cuvm.currentUser.likes, iconName: "smallHeart", subheading: "Likes")
+            IconLabelView(number: currentUserVM.currentUser.likes, iconName: "smallHeart", subheading: "Likes")
             Spacer()
-            IconLabelView(number: cuvm.currentUser.matches, iconName: "smallFlame", subheading: "Matches")
+            IconLabelView(number: currentUserVM.currentUser.matches, iconName: "smallFlame", subheading: "Matches")
             Spacer()
-            IconLabelView(number: cuvm.currentUser.contacts, iconName: "smallContact", subheading: "Contacts")
+            IconLabelView(number: currentUserVM.currentUser.contacts, iconName: "smallContact", subheading: "Contacts")
         }
         .padding(.vertical, 20)
         .padding(.horizontal, 40)
@@ -90,7 +90,6 @@ struct IconLabelView: View {
 
 struct MenuSelectionView: View {
     @Binding var selected: Int
-    @ObservedObject var cuvm: CurrentUserViewModel
     
     var body: some View {
         VStack {
@@ -118,7 +117,7 @@ struct MenuSelectionView: View {
 }
 
 struct PreferencesView: View {
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @State var minAgeTapped = false
     @State var maxAgeTapped = false
     
@@ -131,34 +130,34 @@ struct PreferencesView: View {
                     .cornerRadius(3.0)
                 Spacer(minLength: 15)
                 SystemText(text: "I'm interested in...", fontstyle: .regular)
-                SectionPickerView(choice: $cuvm.currentUser.genderPreference, label: "Men")
-                SectionPickerView(choice: $cuvm.currentUser.genderPreference, label: "Women")
-                SectionPickerView(choice: $cuvm.currentUser.genderPreference, label: "Both")
+                SectionPickerView(choice: $currentUserVM.currentUser.genderPreference, label: "Men")
+                SectionPickerView(choice: $currentUserVM.currentUser.genderPreference, label: "Women")
+                SectionPickerView(choice: $currentUserVM.currentUser.genderPreference, label: "Both")
             }
             VStack (alignment: .leading) {
                 SystemText(text: "Age Range", fontstyle: .regular)
-                AgeRangePicker(minAge: $cuvm.currentUser.minAge, maxAge: $cuvm.currentUser.maxAge, minAgeTapped: $minAgeTapped, maxAgeTapped: $maxAgeTapped)
+                AgeRangePicker(minAge: $currentUserVM.currentUser.minAge, maxAge: $currentUserVM.currentUser.maxAge, minAgeTapped: $minAgeTapped, maxAgeTapped: $maxAgeTapped)
             }
             // Open to religious preferences
             VStack (alignment: .leading) {
                 SystemText(text: "I'm Open To", fontstyle: .regular)
                 VStack {
-                    ReligionView(religions: $cuvm.currentUser.religiousPreferences, openToAll: $cuvm.currentUser.openToAll, preferences: true)
+                    ReligionView(religions: $currentUserVM.currentUser.religiousPreferences, openToAll: $currentUserVM.currentUser.openToAll, preferences: true)
                     Spacer(minLength: 20)
                     HStack {
                         SystemText(text: "Open to all", fontstyle: .medium)
                         Spacer()
-                        SwitchView(on: $cuvm.currentUser.openToAll)
+                        SwitchView(on: $currentUserVM.currentUser.openToAll)
                             .simultaneousGesture(TapGesture().onEnded {
-                                cuvm.currentUser.religiousPreferences = [String]()
+                                currentUserVM.currentUser.religiousPreferences = [String]()
                             })
                     }
-                    if !cuvm.currentUser.religiousPreferences.isEmpty {
+                    if !currentUserVM.currentUser.religiousPreferences.isEmpty {
                         Divider()
                         HStack {
                             SystemText(text: "Dealbreaker?", fontstyle: .medium)
                             Spacer()
-                            SwitchView(on: $cuvm.currentUser.religionDealbreaker)
+                            SwitchView(on: $currentUserVM.currentUser.religionDealbreaker)
                         }
                     }
                     Spacer(minLength: 5)
@@ -172,8 +171,9 @@ struct PreferencesView: View {
 }
 
 struct AboutView: View {
-    @ObservedObject var pvm: ProfileViewModel
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    
     @State var gradTapped = false
     @State var openToAll = false
     @State var customPromptsToSave = ["", "", ""]
@@ -187,9 +187,9 @@ struct AboutView: View {
                     .background(Color("Pink"))
                     .cornerRadius(3.0)
                 NavigationLink(
-                    destination: EditPhotosView().environmentObject(self.pvm),
+                    destination: EditPhotosView().environmentObject(self.profileVM),
                     label: {
-                        ImageGridView().environmentObject(self.pvm)
+                        ImageGridView().environmentObject(self.profileVM)
                     })
                 SystemText(text: "Tap To Edit", fontstyle: .regular)
             }
@@ -200,22 +200,22 @@ struct AboutView: View {
                     .background(Color("Pink"))
                     .cornerRadius(3.0)
                 Spacer(minLength: 15)
-                FirstNameLastNameView(firstName: $cuvm.currentUser.firstName, lastName: $cuvm.currentUser.lastName)
+                FirstNameLastNameView()
                 Spacer(minLength: 15)
                 // bio view
                 SystemText(text: "Bio", fontstyle: .regular)
-                InProfileBioView(bio: $cuvm.currentUser.bio)
+                InProfileBioView(bio: $currentUserVM.currentUser.bio)
                 Spacer(minLength: 15)
                 VStack (alignment: .leading) {
                     SystemText(text: "I identify as...", fontstyle: .regular)
-                    SectionPickerView(choice: $cuvm.currentUser.gender, label: "Male")
-                    SectionPickerView(choice: $cuvm.currentUser.gender, label: "Female")
-                    SectionPickerView(choice: $cuvm.currentUser.gender, label: "Non-binary")
+                    SectionPickerView(choice: $currentUserVM.currentUser.gender, label: "Male")
+                    SectionPickerView(choice: $currentUserVM.currentUser.gender, label: "Female")
+                    SectionPickerView(choice: $currentUserVM.currentUser.gender, label: "Non-binary")
                 }
                 Spacer(minLength: 15)
                 VStack (alignment: .leading) {
                     SystemText(text: "My religious affiliation is", fontstyle: .regular)
-                    ReligionView(religions: $cuvm.currentUser.religions, openToAll: $openToAll, preferences: false)
+                    ReligionView(religions: $currentUserVM.currentUser.religions, openToAll: $openToAll, preferences: false)
                         .padding()
                         .background(Color("Neutral"))
                         .cornerRadius(5)
@@ -227,7 +227,7 @@ struct AboutView: View {
                     .padding(.vertical, 3).padding(.horizontal, 5)
                     .background(Color("Pink"))
                     .cornerRadius(3.0)
-                UserBackgroundView(city: $cuvm.currentUser.city, state: $cuvm.currentUser.state, profession: $cuvm.currentUser.profession, company: $cuvm.currentUser.company, education: $cuvm.currentUser.education, gradYear: $cuvm.currentUser.gradYear)
+                UserBackgroundView(city: $currentUserVM.currentUser.city, state: $currentUserVM.currentUser.state, profession: $currentUserVM.currentUser.profession, company: $currentUserVM.currentUser.company, education: $currentUserVM.currentUser.education, gradYear: $currentUserVM.currentUser.gradYear)
                     .font(Font.custom("Avenir Next Regular", size: 14))
                     .foregroundColor(.white)
                     .padding()
@@ -242,15 +242,15 @@ struct AboutView: View {
                                 .background(Color("Pink"))
                                 .cornerRadius(3.0)) {
                     VStack {
-                        CustomizeFormView(feature: $cuvm.currentUser.order, text: "Bar Order", exampleText: "e.g. Gin and Tonic", iconName: "martiniIcon", isSystemIcon: false)
+                        CustomizeFormView(feature: $currentUserVM.currentUser.order, text: "Bar Order", exampleText: "e.g. Gin and Tonic", iconName: "martiniIcon", isSystemIcon: false)
                         Divider()
-                        CustomizeFormView(feature: $cuvm.currentUser.hobby, text: "Favorite Hobby", exampleText: "e.g. Long Walks along the Pacific Coast", iconName: "hobbyIcon", isSystemIcon: false)
+                        CustomizeFormView(feature: $currentUserVM.currentUser.hobby, text: "Favorite Hobby", exampleText: "e.g. Long Walks along the Pacific Coast", iconName: "hobbyIcon", isSystemIcon: false)
                         Divider()
-                        CustomizeFormView(feature: $cuvm.currentUser.quotes, text: "What Do You Quote Way Too Often?", exampleText: "e.g. The Office, Rick and Morty...", iconName: "quote.bubble.fill", isSystemIcon: true)
+                        CustomizeFormView(feature: $currentUserVM.currentUser.quotes, text: "What Do You Quote Way Too Often?", exampleText: "e.g. The Office, Rick and Morty...", iconName: "quote.bubble.fill", isSystemIcon: true)
                         Divider()
-                        CustomizeFormView(feature: $cuvm.currentUser.guiltyPleasure, text: "Guilty Pleasure", exampleText: "e.g. Party sized Lays bag", iconName: "chipsIcon", isSystemIcon: false)
+                        CustomizeFormView(feature: $currentUserVM.currentUser.guiltyPleasure, text: "Guilty Pleasure", exampleText: "e.g. Party sized Lays bag", iconName: "chipsIcon", isSystemIcon: false)
                         Divider()
-                        CustomizeFormView(feature: $cuvm.currentUser.forFun, text: "What Do You Do For Fun?", exampleText: "e.g. Re-paint my house different colors", iconName: "paintbrush.fill", isSystemIcon: true)
+                        CustomizeFormView(feature: $currentUserVM.currentUser.forFun, text: "What Do You Do For Fun?", exampleText: "e.g. Re-paint my house different colors", iconName: "paintbrush.fill", isSystemIcon: true)
                     }
                     .padding()
                     .background(Color("Neutral"))
@@ -275,17 +275,17 @@ struct AboutView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            self.pvm.setImageLinks(imageLinks: cuvm.currentUser.imageLinks)
-            self.customPromptsToSave = self.cuvm.convertCustomArray(userPrompts: cuvm.currentUser.customPrompts)
-            self.customResponsesToSave = self.cuvm.convertCustomArray(userPrompts: cuvm.currentUser.customResponses)
+            self.profileVM.setImageLinks(imageLinks: currentUserVM.currentUser.imageLinks)
+            self.customPromptsToSave = self.currentUserVM.convertCustomArray(userPrompts: currentUserVM.currentUser.customPrompts)
+            self.customResponsesToSave = self.currentUserVM.convertCustomArray(userPrompts: currentUserVM.currentUser.customResponses)
         }
         .onDisappear {
-            self.cuvm.currentUser.customPrompts = []
-            self.cuvm.currentUser.customResponses = []
+            self.currentUserVM.currentUser.customPrompts = []
+            self.currentUserVM.currentUser.customResponses = []
             for i in 0 ..< self.customPromptsToSave.count {
                 if !self.customPromptsToSave[i].isEmpty && !self.customResponsesToSave[i].isEmpty {
-                    self.cuvm.currentUser.customPrompts.append(self.customPromptsToSave[i])
-                    self.cuvm.currentUser.customResponses.append(self.customResponsesToSave[i])
+                    self.currentUserVM.currentUser.customPrompts.append(self.customPromptsToSave[i])
+                    self.currentUserVM.currentUser.customResponses.append(self.customResponsesToSave[i])
                 }
             }
         }
@@ -293,7 +293,8 @@ struct AboutView: View {
 }
 
 struct SettingsView: View {
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    
     @State var showPreview = false
     @State var presentAlert = false
     
@@ -302,7 +303,7 @@ struct SettingsView: View {
             BGColor()
             VStack {
                 NavigationLink(
-                    destination: UserView(user: self.cuvm.currentUser, invitable: false, isPreview: true, show: $showPreview),
+                    destination: UserView(user: self.currentUserVM.currentUser, invitable: false, isPreview: true, show: $showPreview),
                     label: {
                         HStack {
                             SystemText(text: "Preview Your Profile", fontstyle: .medium)
@@ -379,13 +380,14 @@ struct MilesKmSwitchView: View {
 }
 
 struct ImageGridView: View {
-    @EnvironmentObject var pvm: ProfileViewModel
+    @EnvironmentObject var profileVM: ProfileViewModel
+    
     var body: some View {
         GridStack(rows: 2, columns: 3) { row, col in
             let groupIndex = row * 3 + col
             ZStack {
-                if !isBlank(groupIndex: groupIndex, imagesCount: self.pvm.imageLinks.count) {
-                    SystemWebImage(url: self.pvm.imageLinks[groupIndex], radius: 0)
+                if !isBlank(groupIndex: groupIndex, imagesCount: self.profileVM.imageLinks.count) {
+                    BarWebImage(url: self.profileVM.imageLinks[groupIndex], radius: 0)
                 } else {
                     Image(systemName: "person")
                         .resizable()
@@ -424,8 +426,7 @@ struct ProfileView_Previews: PreviewProvider {
 }
 
 struct FirstNameLastNameView: View {
-    @Binding var firstName: String
-    @Binding var lastName: String
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     
     var body: some View {
         HStack {
@@ -433,12 +434,12 @@ struct FirstNameLastNameView: View {
                 SystemText(text: "First Name", fontstyle: .regular)
                 ZStack {
                     ZStack (alignment: .leading) {
-                        if firstName.isEmpty {
+                        if self.currentUserVM.currentUser.firstName.isEmpty {
                             Text("e.g. Sam")
                                 .foregroundColor(.gray)
                                 .animationsDisabled()
                         }
-                        TextField("e.g. Sam", text: $firstName)
+                        TextField("e.g. Sam", text: $currentUserVM.currentUser.firstName)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.white)
                     }
@@ -455,12 +456,12 @@ struct FirstNameLastNameView: View {
                 SystemText(text: "Last Name", fontstyle: .regular)
                 ZStack {
                     ZStack (alignment: .leading) {
-                        if lastName.isEmpty {
+                        if self.currentUserVM.currentUser.lastName.isEmpty {
                             Text("e.g. Lee")
                                 .foregroundColor(.gray)
                                 .animationsDisabled()
                         }
-                        TextField("e.g. Lee", text: $lastName)
+                        TextField("e.g. Lee", text: $currentUserVM.currentUser.lastName)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.white)
                     }

@@ -148,7 +148,7 @@ struct ProfilePictureView: View {
                     Image("BlankProfPic")
                         .resizable()
                 } else {
-                    SystemWebImage(url: self.viewModel.profPicURL, radius: 0)
+                    BarWebImage(url: self.viewModel.profPicURL, radius: 0)
                         .animationsDisabled()
                 }
             }
@@ -216,7 +216,7 @@ struct ImagePickerView: View {
     var body: some View {
         ZStack {
             if !isBlank {
-                SystemWebImage(url: self.profileVM.imageLinks[self.groupIndex], radius: 0)
+                BarWebImage(url: self.profileVM.imageLinks[self.groupIndex], radius: 0)
                     .animationsDisabled()
             } else {
                 Image(systemName: "person")

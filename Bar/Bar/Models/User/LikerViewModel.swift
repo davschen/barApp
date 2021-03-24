@@ -133,13 +133,6 @@ class LikerViewModel: ObservableObject {
         let matcherDocRef = db.collection("users").document(id)
         let myDocRef = db.collection("users").document(userID)
         
-        // set matchTo matcherID value to my UID
-//        matcherDocRef.getDocument { (snap, error) in
-//            matcherDocRef.setData([
-//                "matcherID" : userID
-//            ], merge: true)
-//        }
-        
         // set my matcherID to matchTo ID
         myDocRef.getDocument { (snap, error) in
             myDocRef.setData([

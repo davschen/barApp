@@ -10,11 +10,14 @@ import SwiftUI
 import Firebase
 
 struct BarPreView: View {
-    let barArr: [Bar]
-    let index: Int
-    @EnvironmentObject var currentUserViewModel: CurrentUserViewModel
-    @Binding var show: Bool
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
     
+    @Binding var show: Bool
+
     var body: some View {
         ZStack {
             BGColor()
@@ -32,7 +35,7 @@ struct BarPreView: View {
                 .padding(.horizontal, 20)
                 ScrollView(.horizontal) {
                     LazyHStack {
-                        PageView(barArr: barArr.wrap(around: index))
+                        PageView(barArr: self.barVM.bars.wrap(around: self.barVM.getCurrentIndex()))
                     }
                 }
             }
@@ -41,10 +44,15 @@ struct BarPreView: View {
 }
 
 struct PageView: View {
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     let barArr: [Bar]
     let db = Firestore.firestore()
-    @EnvironmentObject var cuvm: CurrentUserViewModel
-    
+
     var body: some View {
         TabView {
             ForEach(0..<barArr.count) { i in
@@ -52,7 +60,7 @@ struct PageView: View {
                     Color("Navy")
                     VStack (alignment: .leading, spacing: 10) {
                         let bar: Bar = barArr[i]
-                        SystemWebImage(url: bar.imageLinkName, radius: 10)
+                        BarWebImage(url: bar.imageLinkName, radius: 10)
                         SystemText(text: bar.name, fontstyle: .largeBold)
                         TagView(labels: bar.tags)
                         SystemText(text: bar.description, fontstyle: .mediumItalics)
@@ -69,9 +77,12 @@ struct PageView: View {
                                 .offset(x: 0, y: 4)
                         }
                         VStack (alignment: .center) {
-                            NavigationLink(destination: InBarView(bar: bar)
-                                            .environmentObject(LikerViewModel())
-                                            .environmentObject(cuvm)) {
+                            NavigationLink(destination: InBarView()
+                                            .environmentObject(self.barVM)
+                                            .environmentObject(self.chatVM)
+                                            .environmentObject(self.currentUserVM)
+                                            .environmentObject(self.likerVM)
+                                            .environmentObject(self.userVM)) {
                                 Text("Enter Bar")
                                     .padding(.vertical, 15)
                                     .frame(maxWidth: .infinity)
@@ -81,6 +92,7 @@ struct PageView: View {
                                     .cornerRadius(100)
                             }
                             .simultaneousGesture(TapGesture().onEnded {
+                                self.barVM.updateCurrentBar(bar: self.barArr[i])
                                 if let id = Auth.auth().currentUser?.uid {
                                     db.collection("users").document(id).setData([
                                         "currentBarID" : bar.id!
@@ -100,13 +112,5 @@ struct PageView: View {
         }
         .frame(width: UIScreen.main.bounds.width)
         .tabViewStyle(PageTabViewStyle())
-    }
-}
-
-struct BarPreView_Previews: PreviewProvider {
-    @State private static var show = true
-    @State static var cuvm = CurrentUserViewModel()
-    static var previews: some View {
-        BarPreView(barArr: [], index: 0, show: $show)
     }
 }

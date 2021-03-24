@@ -11,9 +11,12 @@ import SwiftUI
 import Firebase
 
 struct BarView: View {
-    @ObservedObject private var viewModel = BarViewModel()
-    @ObservedObject private var currentUserViewModel = CurrentUserViewModel()
-    @ObservedObject private var likerViewModel = LikerViewModel()
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     @State var isShowingProfile = false
     
     var body: some View {
@@ -21,34 +24,32 @@ struct BarView: View {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: date)
         let minutes = calendar.component(.minute, from: date)
+        
         NavigationView {
             ZStack {
                 BGColor()
                 VStack(alignment: .leading) {
-                    NavigationLink(destination: ProfileView(isShowingProfile: $isShowingProfile).environmentObject(self.currentUserViewModel), isActive: $isShowingProfile) {
+                    NavigationLink(destination: ProfileView(isShowingProfile: $isShowingProfile).environmentObject(self.currentUserVM), isActive: $isShowingProfile) {
                         EditProfileView()
-                            .environmentObject(self.currentUserViewModel)
                     }
                     SystemTextTracking(text: "BARS", fontstyle: .jumboBold)
                         .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
                     SystemText(text: "Last Call in \(25 - hour) hours, \(60 - minutes) minutes", fontstyle: .mediumBold)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
-                            ForEach(viewModel.bars) { bar in
-                                if bar.name != "Berkeley Night Lounge" {
-                                    SmallBarView(barArr: viewModel.bars, bar: bar)
-                                        .environmentObject(self.currentUserViewModel)
-                                        .environmentObject(self.likerViewModel)
+                        HStack (spacing: 5) {
+                            ForEach(self.barVM.bars) { bar in
+                                if bar.name != self.barVM.featuredBar {
+                                    SmallBarView(bar: bar)
                                 }
                             }
                         }
                     }
-                    ForEach(viewModel.bars) { bar in
-                        if bar.name == "Berkeley Night Lounge" {
-                            BigBarView(bar: bar)
-                                .frame(height: UIScreen.main.bounds.height * 0.5)
-                                .environmentObject(self.currentUserViewModel)
-                                .environmentObject(self.likerViewModel)
+                    HStack {
+                        ForEach(self.barVM.bars) { bar in
+                            if bar.name == self.barVM.featuredBar {
+                                BigBarView(bar: bar)
+                                    .frame(height: UIScreen.main.bounds.height * 0.5)
+                            }
                         }
                     }
                 }
@@ -68,33 +69,35 @@ struct BarView: View {
 }
 
 struct SmallBarView: View {
-    @State var showDetail = false
-    let barArr: [Bar]
-    let bar: Bar
-    @EnvironmentObject var cuvm: CurrentUserViewModel
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @EnvironmentObject var likerVM: LikerViewModel
-    var index: Int {
-        var indToReturn = 0
-        for i in 0..<barArr.count {
-            let scrolledBar = barArr[i]
-            if self.bar.name == scrolledBar.name {
-                indToReturn = i
-            }
-        }
-        return indToReturn
-    }
+    @EnvironmentObject var userVM: UserViewModel
+    
+    @State private var showDetail = false
+    
+    let bar: Bar
+    
     var body: some View {
-        NavigationLink(destination: BarPreView(barArr: barArr, index: index, show: $showDetail)
-                        .environmentObject(cuvm)
-                        .environmentObject(likerVM), isActive: $showDetail) {
-            VStack(alignment: .leading, spacing: 10) {
-                SystemWebImage(url: bar.imageLinkName, radius: 10)
-                SystemText(text: bar.name, fontstyle: .regularBold)
-                CapacityView(capacity: Double(bar.occup) / Double(bar.cap))
-            }
-            .padding(10)
-            .background(Color("Navy"))
-            .cornerRadius(10.0)
+        NavigationLink(destination: BarPreView(show: $showDetail)
+                        .environmentObject(self.barVM)
+                        .environmentObject(self.chatVM)
+                        .environmentObject(self.currentUserVM)
+                        .environmentObject(self.likerVM)
+                        .environmentObject(self.userVM), isActive: $showDetail) {
+        }.hidden()
+        VStack(alignment: .leading, spacing: 10) {
+            BarWebImage(url: self.bar.imageLinkName, radius: 10)
+            SystemText(text: self.bar.name, fontstyle: .regularBold)
+            CapacityView(capacity: Double(self.bar.occup) / Double(self.bar.cap))
+        }
+        .padding(10)
+        .background(Color("Navy"))
+        .cornerRadius(10.0)
+        .onTapGesture {
+            self.barVM.selectedBarForPreView = self.bar 
+            self.showDetail.toggle()
         }
     }
 }
@@ -112,9 +115,9 @@ struct CapacityView: View {
                     Rectangle()
                         .fill(Color("Pink"))
                         .cornerRadius(.infinity)
-                        .frame(width: CGFloat(Double(capacity) * Double(geometry.size.width)), height: 4.0)
+                        .frame(width: CGFloat(Double(self.capacity) * Double(geometry.size.width)), height: 4.0)
                 }
-                SystemText(text: "\(Int(capacity * 100))% full", fontstyle: .small)
+                SystemText(text: "\(Int(self.capacity * 100))% full", fontstyle: .small)
             }
         }
         .frame(height: 30)
@@ -122,17 +125,20 @@ struct CapacityView: View {
 }
 
 struct BigBarView: View {
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    
     @State var bar: Bar
     @State var showBar = false
-    @EnvironmentObject var cuvm: CurrentUserViewModel
-    @EnvironmentObject var likerVM: LikerViewModel
+
     var db = Firestore.firestore()
     
     var body: some View {
         VStack(alignment: .leading) {
             SystemTextTracking(text: "BAR OF THE NIGHT", fontstyle: .largeBold)
                 .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
-            SystemWebImage(url: bar.imageLinkName, radius: 10)
+            BarWebImage(url: bar.imageLinkName, radius: 10)
             SystemText(text: bar.name, fontstyle: .largeBold)
             TagView(labels: bar.tags)
             HStack (alignment: .top) {
@@ -149,6 +155,7 @@ struct BigBarView: View {
             }
             Button(action: {
                 self.showBar = true
+                self.barVM.updateCurrentBar(bar: self.bar)
                 if let id = Auth.auth().currentUser?.uid {
                     db.collection("users").document(id).setData([
                         "currentBarID" : bar.id!
@@ -158,9 +165,9 @@ struct BigBarView: View {
                 StandardButtonView(text: "Enter Bar")
                     .padding()
             })
-            NavigationLink(destination: InBarView(bar: self.bar)
-                            .environmentObject(likerVM)
-                            .environmentObject(cuvm), isActive: $showBar) {
+            NavigationLink(destination: InBarView()
+                            .environmentObject(self.currentUserVM)
+                            .environmentObject(self.likerVM), isActive: $showBar) {
             }.hidden()
         }
         .padding()
@@ -171,24 +178,25 @@ struct BigBarView: View {
 
 struct EditProfileView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    
     let height = UIScreen.main.bounds.height / 15
 
     var body: some View {
         HStack {
-            SystemWebImage(url: currentUserVM.currentUser.profURL, radius: 0)
+            BarWebImage(url: self.currentUserVM.currentUser.profURL, radius: 0)
                 .clipShape(Circle())
                 .overlay(Circle()
                     .stroke(Color("Pink"), lineWidth: 3))
                 .frame(width: 30, height: 30)
             Spacer()
                 .frame(width: 10)
-            Text("\(currentUserVM.currentUser.firstName)'s Profile")
+            Text("\(self.currentUserVM.currentUser.firstName)'s Profile")
                 .font(Font.custom("Avenir Next Bold", size: 16))
                 .foregroundColor(.white)
             Spacer()
             Image("settings icon")
         }
-        .frame(height: height)
+        .frame(height: self.height)
         .padding(.horizontal)
         .background(Color("Navy"))
         .cornerRadius(10)
@@ -199,7 +207,7 @@ struct TagView: View {
     let labels: [String]
     var body: some View {
         HStack {
-            ForEach(labels, id: \.self) { label in
+            ForEach(self.labels, id: \.self) { label in
                 Text("\(label)")
                     .font(Font.custom("Avenir Next Regular", size: 10))
                     .foregroundColor(.white)

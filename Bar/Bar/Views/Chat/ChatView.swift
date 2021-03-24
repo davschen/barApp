@@ -9,16 +9,18 @@ import Foundation
 import SwiftUI
 
 struct ChatView: View {
-    @State var chatTo: User
-    @Binding var showChat: Bool
-    @StateObject var chatVM: ChatViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
     @EnvironmentObject var likerViewModel: LikerViewModel
+    
+    @Binding var showChat: Bool
+    
     @State var responderName = ""
     @State var isShowingMore = false
     @State var showChatTo = false
     @State var selectedMessageID = ""
     @State var showsMenu = false
     @State private var timeRemaining: Double = 1200
+    
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
@@ -28,13 +30,13 @@ struct ChatView: View {
                 VStack (spacing: 0) {
                     VStack {
                         HStack {
-                            NavigationLink(destination: UserView(user: chatTo, invitable: false, isPreview: true, show: $showChatTo)) {
-                                SystemWebImage(url: chatTo.profURL, radius: 0)
+                            NavigationLink(destination: UserView(user: self.chatVM.chatToUser, invitable: false, isPreview: true, show: $showChatTo)) {
+                                BarWebImage(url: self.chatVM.chatToUser.profURL, radius: 0)
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                             }
                             VStack (alignment: .leading, spacing: -3) {
-                                SystemText(text: chatTo.firstName, fontstyle: .largeDemiBold)
+                                SystemText(text: self.chatVM.chatToUser.firstName, fontstyle: .largeDemiBold)
                                 Text(countdownStringHandler())
                                     .font(Font.custom("Avenir Next Medium", size: 12))
                                     .foregroundColor(.gray)
@@ -58,7 +60,7 @@ struct ChatView: View {
                     ScrollView(.vertical, showsIndicators: true, content: {
                         VStack (spacing: 3) {
                             ForEach(chatVM.messages) { message in
-                                ChatTextView(replyText: $chatVM.response, respondMessageID: $chatVM.respondMessageID, respondToID: $chatVM.respondToID, responderName: $responderName, lastMessageSenderID: $chatVM.lastMessageSenderID, selectedMessageID: $selectedMessageID, lastMessageID: $chatVM.lastMessageID, proxy: proxy, messageData: message, chatViewModel: self.chatVM, chatTo: chatTo)
+                                ChatTextView(replyText: $chatVM.response, respondMessageID: $chatVM.respondMessageID, respondToID: $chatVM.respondToID, responderName: $responderName, lastMessageSenderID: $chatVM.lastMessageSenderID, selectedMessageID: $selectedMessageID, lastMessageID: $chatVM.lastMessageID, proxy: proxy, messageData: message, chatViewModel: self.chatVM, chatTo: self.chatVM.chatToUser)
                                     .onAppear {
                                         chatVM.setSenderID(id: message.senderID)
                                         chatVM.setLastMessageID(id: message.id ?? "")
@@ -195,7 +197,7 @@ struct ChatView: View {
                 }
             }
             ZStack {
-                PullUpMenuView(chatTo: self.chatTo, showChatTo: $showChatTo, showsMenu: $showsMenu, timeRemaining: $timeRemaining, chatVM: self.chatVM, showChat: $showChat)
+                PullUpMenuView(chatTo: self.chatVM.chatToUser, showChatTo: $showChatTo, showsMenu: $showsMenu, timeRemaining: $timeRemaining, chatVM: self.chatVM, showChat: $showChat)
             }.transition(.opacity).animation(.easeInOut)
         }
         .onReceive(timer) { time in
@@ -222,7 +224,7 @@ struct ChatView: View {
     
     func reject() {
         self.chatVM.deleteMessages()
-        self.likerViewModel.declineMatcher(id: self.chatTo.id ?? "")
+        self.likerViewModel.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
         self.showChat.toggle()
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
@@ -393,12 +395,5 @@ struct PullUpMenuView: View {
                         }))
         }
         .edgesIgnoringSafeArea(.all)
-    }
-}
-
-struct ChatView_Previews: PreviewProvider {
-    @State static var showChat = true
-    static var previews: some View {
-        ChatView(chatTo: TempUserLib().user1, showChat: $showChat, chatVM: ChatViewModel(recipient: TempUserLib().user1))
     }
 }

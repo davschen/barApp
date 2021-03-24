@@ -9,10 +9,13 @@ import Foundation
 import SwiftUI
 
 struct WaitingForMatchView: View {
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    
     @Binding var showWaitView: Bool
+    
     @State var showChat = false
     @State var mainText = "Waiting For A Confirmation..."
-    @EnvironmentObject var likerVM: LikerViewModel
     
     var body: some View {
         ZStack {
@@ -21,7 +24,7 @@ struct WaitingForMatchView: View {
                 .edgesIgnoringSafeArea(.all)
             VStack {
                 VStack {
-                    SystemWebImage(url: matcher.profURL, radius: 0)
+                    BarWebImage(url: matcher.profURL, radius: 0)
                         .frame(width: 150, height: 165)
                         .clipShape(Circle())
                     SystemText(text: self.mainText, fontstyle: .headerBold)
@@ -50,7 +53,10 @@ struct WaitingForMatchView: View {
             if self.likerVM.matcher.count == 1 {
                 Text("").onAppear { self.showChat.toggle() }
             }
-            NavigationLink(destination: ChatView(chatTo: matcher, showChat: $showChat, chatVM: ChatViewModel(recipient: matcher)).environmentObject(likerVM), isActive: $showChat) {
+            NavigationLink(destination: ChatView(showChat: $showChat)
+                            .environmentObject(self.chatVM)
+                            .environmentObject(self.likerVM)
+                           , isActive: $showChat) {
             }.hidden()
         }
         .edgesIgnoringSafeArea(.all)

@@ -22,7 +22,7 @@ struct ChatTextView: View {
     @State var didReply = false
     @State var showChatTo = false
     @State var hOffset: CGFloat = .zero
-    @State var messageData: MessageModel
+    @State var messageData: Message
     @ObservedObject var chatViewModel: ChatViewModel
     let chatTo: User
     
@@ -57,7 +57,7 @@ struct ChatTextView: View {
                                 if shouldDisplayImage() {
                                     NavigationLink(destination: UserView(user: chatTo, invitable: false, isPreview: true, show: $showChatTo)) {
                                         VStack {
-                                            SystemWebImage(url: chatTo.profURL, radius: 0)
+                                            BarWebImage(url: chatTo.profURL, radius: 0)
                                                 .frame(width: 30, height: 30)
                                                 .clipShape(Circle())
                                                 .padding(.top, 3)

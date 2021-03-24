@@ -10,8 +10,8 @@ import SwiftUI
 import Firebase
 
 class ChatViewModel: ObservableObject {
-    @Published var messages = [MessageModel]()
-    @State var recipient: User
+    @Published var messages = [Message]()
+    @Published var chatToUser = TempUserLib().emptyUser
     @Published var text = ""
     @Published var response = ""
     @Published var respondToID = ""
@@ -21,8 +21,7 @@ class ChatViewModel: ObservableObject {
     
     let ref = Firestore.firestore()
     
-    init(recipient: User) {
-        self.recipient = recipient
+    init() {
         readAllMessages()
     }
     
@@ -32,22 +31,15 @@ class ChatViewModel: ObservableObject {
                 print(err!.localizedDescription)
                 return
             }
-            guard let data = snap else { return }
-            data.documentChanges.forEach { (doc) in
-                if doc.type == .added {
-                    let message = try? doc.document.data(as: MessageModel.self)!
-                    DispatchQueue.main.async {
-                        if let message = message {
-                            self.messages.append(message)
-                        }
-                    }
-                }
+            guard let data = snap?.documents else { return }
+            self.messages = data.compactMap { (query) -> Message? in
+                return try? query.data(as: Message.self)
             }
         }
     }
     
     func writeMessage() {
-        let message = MessageModel(text: self.text, senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: self.respondToID, lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: self.respondMessageID)
+        let message = Message(text: self.text, senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: self.respondToID, lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: self.respondMessageID)
         let _ = try? ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
@@ -55,7 +47,7 @@ class ChatViewModel: ObservableObject {
             }
         }
         
-        let _ = try? ref.collection("users").document(self.recipient.id!).collection("messages").addDocument(from: message) { (err) in
+        let _ = try? ref.collection("users").document(self.chatToUser.id!).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
@@ -74,13 +66,13 @@ class ChatViewModel: ObservableObject {
             guard let data = snap else { return }
             data.documents.forEach { (doc) in
                 self.ref.collection("users").document(userID).collection("messages").document(doc.documentID).delete()
-                self.ref.collection("users").document(self.recipient.id!).collection("messages").document(doc.documentID).delete()
+                self.ref.collection("users").document(self.chatToUser.id!).collection("messages").document(doc.documentID).delete()
             }
         }
     }
     
     func shareContact() {
-        let message = MessageModel(text: Auth.auth().currentUser!.phoneNumber ?? "Couldn't send contact", senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: "", lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: "")
+        let message = Message(text: Auth.auth().currentUser!.phoneNumber ?? "Couldn't send contact", senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: "", lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: "")
 
         let _ = try? ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
@@ -89,7 +81,7 @@ class ChatViewModel: ObservableObject {
             }
         }
 
-        let _ = try? ref.collection("users").document(self.recipient.id!).collection("messages").addDocument(from: message) { (err) in
+        let _ = try? ref.collection("users").document(self.chatToUser.id!).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return

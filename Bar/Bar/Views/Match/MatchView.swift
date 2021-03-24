@@ -9,10 +9,11 @@ import Foundation
 import SwiftUI
 
 struct MatchView: View {
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
     @State var showChat = false
     @Binding var showMatchView: Bool
-    @EnvironmentObject var likerVM: LikerViewModel
-    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     
     var body: some View {
         ZStack {
@@ -33,12 +34,12 @@ struct MatchView: View {
                     .frame(maxWidth: .infinity)
                     VStack {
                         HStack {
-                            SystemWebImage(url: currentUserVM.currentUser.profURL, radius: 0)
+                            BarWebImage(url: currentUserVM.currentUser.profURL, radius: 0)
                                 .frame(maxHeight: UIScreen.main.bounds.height / 6)
                                 .clipShape(Circle())
                                 .background(Circle().stroke(Color("Pink"), lineWidth: 10))
                                 .padding(.horizontal)
-                            SystemWebImage(url: likerVM.matchedUser.profURL, radius: 0)
+                            BarWebImage(url: likerVM.matchedUser.profURL, radius: 0)
                                 .frame(maxHeight: UIScreen.main.bounds.height / 6)
                                 .clipShape(Circle())
                                 .background(Circle().stroke(Color.white, lineWidth: 10))
@@ -76,7 +77,10 @@ struct MatchView: View {
                 }
                 .padding(.horizontal, 40).padding(.top)
                 NavigationLink(
-                    destination: ChatView(chatTo: self.likerVM.matchedUser, showChat: $showChat, chatVM: ChatViewModel(recipient: self.likerVM.matchedUser)).environmentObject(self.likerVM), isActive: $showChat,
+                    destination: ChatView(showChat: $showChat)
+                        .environmentObject(self.chatVM)
+                        .environmentObject(self.likerVM)
+                    , isActive: $showChat,
                     label: {
                         // no label, because that is the point
                     }).hidden()

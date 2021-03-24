@@ -10,8 +10,16 @@ import SwiftUI
 import Firebase
 
 struct VerifyNumberView: View {
+    @ObservedObject var barVM = BarViewModel()
+    @ObservedObject var chatVM = ChatViewModel()
+    @ObservedObject var currentUserVM = CurrentUserViewModel()
+    @ObservedObject var likerVM = LikerViewModel()
+    @ObservedObject var profileVM = ProfileViewModel()
+    @ObservedObject var userVM = UserViewModel()
+    
     @Binding var ID: String
     @Binding var isShowingVerify: Bool
+    
     @State var phoneNumber: String
     @State var isShowingBuildProfile = false
     @State var vCode = ""
@@ -112,7 +120,13 @@ struct VerifyNumberView: View {
                                     .background(Color("Pink"))
                                     .clipShape(Capsule())
                                 if showsBarView {
-                                    NavigationLink(destination: BarView().environmentObject(CurrentUserViewModel()), isActive: $showsBarView) {
+                                    NavigationLink(destination: BarView()
+                                                    .environmentObject(self.barVM)
+                                                    .environmentObject(self.chatVM)
+                                                    .environmentObject(self.currentUserVM)
+                                                    .environmentObject(self.likerVM)
+                                                    .environmentObject(self.profileVM)
+                                                    .environmentObject(self.userVM), isActive: $showsBarView) {
                                     }.hidden()
                                 }
                             })
@@ -139,13 +153,5 @@ struct VerifyNumberView: View {
     
     func hasValidVCode() -> Bool {
         return self.vCode.count == 6 && self.vCode.isInt
-    }
-}
-
-struct VerifyView_Previews: PreviewProvider {
-    @State static var isShowingVerify = true
-    @State static var ID = ""
-    static var previews: some View {
-        VerifyNumberView(ID: $ID, isShowingVerify: $isShowingVerify, phoneNumber: "")
     }
 }

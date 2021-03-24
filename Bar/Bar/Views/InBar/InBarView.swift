@@ -9,10 +9,12 @@ import Foundation
 import SwiftUI
 
 struct InBarView: View {
-    @State var bar: Bar
-    @EnvironmentObject var currentUserViewModel: CurrentUserViewModel
-    @EnvironmentObject var likerViewModel: LikerViewModel
-    @ObservedObject private var userViewModel = UserViewModel()
+    @EnvironmentObject var barVM: BarViewModel
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     @State var showLikesYou = false
     @State var showInvite = false
     @State var likedUser: User = TempUserLib().user1
@@ -34,7 +36,7 @@ struct InBarView: View {
             VStack (alignment: .leading) {
                 HStack (alignment: .bottom) {
                     VStack (alignment: .leading) {
-                        Text("\(bar.name.uppercased())")
+                        Text("\(self.barVM.currentBar.name.uppercased())")
                             .font(Font.custom("Avenir Next Bold", size: 20))
                             .tracking(3)
                             .foregroundColor(.white)
@@ -46,7 +48,7 @@ struct InBarView: View {
                     Spacer()
                     Button(action: {
                         self.presentAlert.toggle()
-                        print("matcher count is: " + "\(self.likerViewModel.matcher.count)")
+                        print("matcher count is: " + "\(self.likerVM.matcher.count)")
                     }, label: {
                         StandardButtonView(text: "Bar Hop")
                             .frame(width: UIScreen.main.bounds.width / 5)
@@ -55,7 +57,7 @@ struct InBarView: View {
                         
                     }.hidden()
                 }
-                NavigationLink(destination: LikesYouView().environmentObject(self.likerViewModel), isActive: $showLikesYou) {
+                NavigationLink(destination: LikesYouView().environmentObject(self.likerVM), isActive: $showLikesYou) {
                     HStack {
                         Text("SEE WHO LIKES YOU")
                             .font(Font.custom("Avenir Next Demi Bold", size: 14))
@@ -64,13 +66,13 @@ struct InBarView: View {
                             .padding()
                         Spacer()
                         ZStack {
-                            ForEach(self.likerViewModel.likers) { liker in
-                                SystemWebImage(url: liker.profURL, radius: 0)
+                            ForEach(self.likerVM.likers) { liker in
+                                BarWebImage(url: liker.profURL, radius: 0)
                                     .frame(width: 30, height: 30)
                                     .clipShape(Circle())
                                     .background(Circle().stroke(Color.white, lineWidth: 2))
                             }
-                            if likerViewModel.likers.count > 2 {
+                            if likerVM.likers.count > 2 {
                                 // Circle with +N
                                 Group {
                                     Circle()
@@ -80,7 +82,7 @@ struct InBarView: View {
                                                 .foregroundColor(.black)
                                                 .opacity(0.7))
                                         .frame(width: 30, height: 30)
-                                    Text("+\(likerViewModel.likers.count)")
+                                    Text("+\(likerVM.likers.count)")
                                         .font(Font.custom("Avenir Next Demi Bold", size: 12))
                                         .foregroundColor(.white)
                                 }
@@ -144,13 +146,14 @@ struct InBarView: View {
             }.transition(.opacity).animation(.easeInOut)
             // if they receive a matcher, show the matchview
             VStack {
-                if self.likerViewModel.matcher.count > 0 {
+                if self.likerVM.matcher.count > 0 {
                     Text("").onAppear { self.showMatchView.toggle() }
                 }
                 if showMatchView {
                     MatchView(showMatchView: $showMatchView)
-                        .environmentObject(self.likerViewModel)
-                        .environmentObject(self.currentUserViewModel)
+                        .environmentObject(self.chatVM)
+                        .environmentObject(self.currentUserVM)
+                        .environmentObject(self.likerVM)
                 }
             }
             .transition(.opacity).animation(.easeInOut)
@@ -159,8 +162,9 @@ struct InBarView: View {
             Alert(title: Text("Are You Sure?"), message: Text("Leaving the bar will take you out of everyone's likes"),
                   primaryButton: .cancel(),
                   secondaryButton: .default(Text("Yes, I want to leave"), action: {
-                    self.currentUserViewModel.changeUserValueDB(key: "currentBarID", value: "")
-                    self.likerViewModel.removeAllLikers()
+                    self.currentUserVM.changeUserValueDB(key: "currentBarID", value: "")
+                    self.likerVM.removeAllLikers()
+                    self.userVM.clearUsers()
                     self.barHopActive = true
                   }))
         }
@@ -176,14 +180,14 @@ struct InBarView: View {
     var scrollOrGridView: some View {
         if #available(iOS 14.0, *) {
             LazyVGrid(columns: twoColumnGrid) {
-                ForEach(userViewModel.users) { user in
+                ForEach(userVM.users) { user in
                     ProfilePreView(height: 250, user: user, showInvite: $showInvite, likedUser: $likedUser)
                         .id(user.id)
                 }
             }
             .padding(5)
         } else {
-            ForEach(userViewModel.users) { user in
+            ForEach(userVM.users) { user in
                 ProfilePreView(height: UIScreen.main.bounds.height / 2, user: user, showInvite: $showInvite, likedUser: $likedUser)
             }
         }
@@ -191,17 +195,22 @@ struct InBarView: View {
 }
 
 struct ProfilePreView: View {
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
     let height: CGFloat
     let user: User
     @Binding var showInvite: Bool
     @Binding var likedUser: User
-    @EnvironmentObject var likerVM: LikerViewModel
     @State var show = false
     
     var body: some View {
-        NavigationLink(destination: UserView(user: user, invitable: true, isPreview: false, show: $show).environmentObject(self.likerVM), isActive: $show) {
+        NavigationLink(destination:
+                        UserView(user: user, invitable: true, isPreview: false, show: $show)
+                        .environmentObject(self.likerVM)
+                        .environmentObject(self.userVM)
+                       , isActive: $show) {
             ZStack (alignment: .bottom) {
-                SystemWebImage(url: user.imageLinks[0], radius: 0)
+                BarWebImage(url: user.imageLinks[0], radius: 0)
                 Rectangle()
                     .fill(LinearGradient(
                             gradient: .init(colors: [Color.black.opacity(0), Color.black.opacity(0.7)]),
@@ -234,33 +243,4 @@ struct ProfilePreView: View {
 public func getYearsDiffFromDate(date: Date) -> Int {
     let difference = Calendar.current.dateComponents([.year], from: date, to: Date())
     return Int(difference.year!)
-}
-
-struct ProfileGrid: View {
-    let height: CGFloat
-    let inBarUserModel: UserViewModel
-    @Binding var showInvite: Bool
-    @Binding var likedUser: User
-    
-    var body: some View {
-        VStack {
-            ForEach(0..<inBarUserModel.users.count / 2) { row in
-                HStack {
-                    ForEach(0..<3) { column in // create 3 columns
-                        let user = self.inBarUserModel.users[row * 3 + column]
-                        ProfilePreView(height: height, user: user, showInvite: $showInvite, likedUser: $likedUser)
-                    }
-                }
-                .padding(.horizontal, 15)
-            }
-        }
-        .padding(.vertical)
-    }
-}
-
-struct InBarView_Previews: PreviewProvider {
-    static var cuvm = CurrentUserViewModel()
-    static var previews: some View {
-        InBarView(bar: Bar(id: "", name: "", description: "", imageLinkName: "", tags: [], cap: 0.0, occup: 0.0, city: "", state: ""))
-    }
 }

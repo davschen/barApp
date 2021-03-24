@@ -8,7 +8,7 @@
 import SwiftUI
 import FirebaseFirestoreSwift
 
-struct MessageModel: Codable, Identifiable, Hashable {
+struct Message: Codable, Identifiable, Hashable {
     @DocumentID var id: String?
     var text: String
     var senderID: String

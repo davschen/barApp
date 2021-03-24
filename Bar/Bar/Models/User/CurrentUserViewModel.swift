@@ -10,25 +10,24 @@ import SwiftUI
 import Firebase
 
 class CurrentUserViewModel: ObservableObject {
-    @Published var currentUser: User
+    @Published var currentUser = TempUserLib().emptyUser
     private var db = Firestore.firestore()
     
-    init(currentUser: User = User(id: "", firstName: "", lastName: "", phoneNumber: "", gender: "", genderPreference: "", education: "", profession: "", company: "", city: "", state: "", lookingFor: "", bio: "", order: "", hobby: "", quotes: "", guiltyPleasure: "", forFun: "", currentBarID: "", profURL: "", matcherID: "", minAge: 0, maxAge: 0, likes: 0, matches: 0, contacts: 0, gradYear: 0, imageLinks: [], customPrompts: [], customResponses: [], religions: [], religiousPreferences: [], seenBefore: [], showsLocation: false, lookingForDealbreaker: false, religionDealbreaker: false, openToAll: false, dob: Date())) {
-        self.currentUser = currentUser
+    init() {
         getUser()
     }
     
     func getUser() {
-        db.collection("users").document(Auth.auth().currentUser?.uid ?? "").addSnapshotListener { (doc, error) in
+        guard let currentUserUID = Auth.auth().currentUser?.uid else { return }
+        db.collection("users").document(currentUserUID).addSnapshotListener { (doc, error) in
             if error != nil {
                 print(error!.localizedDescription)
                 return
             }
-            if let doc = doc {
-                if let currentUser = try? doc.data(as: User.self) {
-                    DispatchQueue.main.async {
-                        self.currentUser = currentUser
-                    }
+            guard let doc = doc else { return }
+            if let currentUser = try? doc.data(as: User.self) {
+                DispatchQueue.main.async {
+                    self.currentUser = currentUser
                 }
             }
         }

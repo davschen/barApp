@@ -10,6 +10,13 @@ import SwiftUI
 import Firebase
 
 struct CustomizeProfileView: View {
+    @ObservedObject var barVM = BarViewModel()
+    @ObservedObject var chatVM = ChatViewModel()
+    @ObservedObject var currentUserVM = CurrentUserViewModel()
+    @ObservedObject var likerVM = LikerViewModel()
+    @ObservedObject var profileVM = ProfileViewModel()
+    @ObservedObject var userVM = UserViewModel()
+    
     @State var city = ""
     @State var state = ""
     @State var showsLocation = false
@@ -98,7 +105,13 @@ struct CustomizeProfileView: View {
                     .padding(.vertical)
                 }
                 Section {
-                    NavigationLink(destination: BarView()) {
+                    NavigationLink(destination: BarView()
+                                    .environmentObject(self.barVM)
+                                    .environmentObject(self.chatVM)
+                                    .environmentObject(self.currentUserVM)
+                                    .environmentObject(self.likerVM)
+                                    .environmentObject(self.profileVM)
+                                    .environmentObject(self.userVM)) {
                         HStack {
                             Text("Take me to Bar")
                             Spacer()
