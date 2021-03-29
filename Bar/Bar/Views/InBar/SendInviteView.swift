@@ -9,13 +9,17 @@ import Foundation
 import SwiftUI
 
 struct SendInviteView: View {
-    let user: User
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
     @Binding var heading: String
     @Binding var subheading: String
     @Binding var inviteType: InviteType
     @Binding var comment: String
     @Binding var showInviteView: Bool
-    @EnvironmentObject var likerViewModel: LikerViewModel
+    
+    var sendInviteTo: User {
+        return self.likerVM.sendInviteToUser
+    }
     
     var body: some View {
         let customize = customizer(it: inviteType)
@@ -31,7 +35,7 @@ struct SendInviteView: View {
                 .edgesIgnoringSafeArea(.all)
                 .opacity(0.2)
             VStack (alignment: .leading, spacing: 15) {
-                Text("\(user.firstName)")
+                Text("\(self.likerVM.sendInviteToUser.firstName)")
                     .font(Font.custom("Avenir Next Demi Bold", size: 36))
                     .foregroundColor(.white)
                     .offset(y: 60)
@@ -46,10 +50,10 @@ struct SendInviteView: View {
                         }
                         .zIndex(1)
                         if inviteType == .normal {
-                            if user.bio != "" {
-                                InviteCardView(bio: user.bio, user: user)
+                            if self.likerVM.sendInviteToUser.bio != "" {
+                                InviteCardView(bio: self.sendInviteTo.bio, user: self.sendInviteTo)
                             } else {
-                                InviteCardView(bio: "Tell \(user.firstName) what you like about \(likerViewModel.generatePronouns(user: user)[1])!", user: user)
+                                InviteCardView(bio: "Tell \(self.sendInviteTo.firstName) what you like about \(likerVM.generatePronouns(user: self.likerVM.sendInviteToUser)[1])!", user: self.sendInviteTo)
                             }
                         } else {
                             LikeCommentCardView(heading: heading, subheading: subheading)
@@ -75,7 +79,7 @@ struct SendInviteView: View {
                 
                 // Send invite button
                 Button(action: {
-                    likerViewModel.addLiker(likeToID: user.id ?? "", heading: self.heading, subheading: self.subheading, comment: self.comment)
+                    self.likerVM.sendInvite(heading: self.heading, subheading: self.subheading, comment: self.comment)
                     self.comment = ""
                     self.showInviteView.toggle()
                 }, label: {
@@ -166,17 +170,4 @@ enum InviteType {
     case normal
     case like
     case comment
-}
-
-struct SendInviteView_Previews: PreviewProvider {
-    @State static var show = true
-    @State static var inviteType: InviteType = .normal
-    @State static var user = TempUserLib().user1
-    @State static var heading = "Chinese Chicken Sausage"
-    @State static var subheading = "Data Science Tutor"
-    @State static var comment = ""
-    
-    static var previews: some View {
-        SendInviteView(user: self.user, heading: $heading, subheading: $subheading, inviteType: $inviteType, comment: $comment, showInviteView: $show)
-    }
 }

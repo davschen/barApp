@@ -21,7 +21,7 @@ struct ProfileView: View {
                 .edgesIgnoringSafeArea(.all)
             ScrollView (.vertical) {
                 VStack {
-                    ProfilePictureView(viewModel: self.profileViewModel)
+                    ProfilePictureView(profileVM: self.profileViewModel)
                     SystemText(text: "\(currentUserVM.currentUser.firstName) \(currentUserVM.currentUser.lastName)", fontstyle: .headerDemiBold)
                     CloutView()
                     MenuSelectionView(selected: $selected)
@@ -294,6 +294,7 @@ struct AboutView: View {
 
 struct SettingsView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var userVM: UserViewModel
     
     @State var showPreview = false
     @State var presentAlert = false
@@ -303,7 +304,7 @@ struct SettingsView: View {
             BGColor()
             VStack {
                 NavigationLink(
-                    destination: UserView(user: self.currentUserVM.currentUser, invitable: false, isPreview: true, show: $showPreview),
+                    destination: UserView(invitable: false, isPreview: true, show: $showPreview),
                     label: {
                         HStack {
                             SystemText(text: "Preview Your Profile", fontstyle: .medium)
@@ -313,6 +314,9 @@ struct SettingsView: View {
                         .padding()
                         .background(Color("Neutral"))
                         .cornerRadius(5)
+                    })
+                    .simultaneousGesture(TapGesture().onEnded {
+                        self.userVM.setInspectedUser(user: currentUserVM.currentUser)
                     })
                 Spacer(minLength: 20)
                 Button(action: {

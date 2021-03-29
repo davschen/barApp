@@ -12,14 +12,16 @@ import Firebase
 class CurrentUserViewModel: ObservableObject {
     @Published var currentUser = TempUserLib().emptyUser
     private var db = Firestore.firestore()
+    private var myUID: String {
+        return Auth.auth().currentUser?.uid ?? "NOT-AN-ID"
+    }
     
     init() {
         getUser()
     }
     
     func getUser() {
-        guard let currentUserUID = Auth.auth().currentUser?.uid else { return }
-        db.collection("users").document(currentUserUID).addSnapshotListener { (doc, error) in
+        db.collection("users").document(self.myUID).addSnapshotListener { (doc, error) in
             if error != nil {
                 print(error!.localizedDescription)
                 return
@@ -34,9 +36,7 @@ class CurrentUserViewModel: ObservableObject {
     }
     
     func updateDB() {
-        if let id = Auth.auth().currentUser?.uid {
-            let _ = try? db.collection("users").document(id).setData(from: self.currentUser)
-        }
+        let _ = try? db.collection("users").document(self.myUID).setData(from: self.currentUser)
     }
     
     func convertCustomArray(userPrompts: [String]) -> [String] {
@@ -48,10 +48,8 @@ class CurrentUserViewModel: ObservableObject {
     }
     
     func changeUserValueDB(key: String, value: Any) {
-        if let id = Auth.auth().currentUser?.uid {
-            db.collection("users").document(id).setData([
-                key : value
-            ], merge: true)
-        }
+        db.collection("users").document(self.myUID).setData([
+            key : value
+        ], merge: true)
     }
 }

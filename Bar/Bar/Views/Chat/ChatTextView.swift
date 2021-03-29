@@ -55,7 +55,7 @@ struct ChatTextView: View {
                             // for the person the user is messaging, show the image icon if the last message was not sent by them
                             if !isCurrentUser() {
                                 if shouldDisplayImage() {
-                                    NavigationLink(destination: UserView(user: chatTo, invitable: false, isPreview: true, show: $showChatTo)) {
+                                    NavigationLink(destination: UserView(invitable: false, isPreview: true, show: $showChatTo)) {
                                         VStack {
                                             BarWebImage(url: chatTo.profURL, radius: 0)
                                                 .frame(width: 30, height: 30)

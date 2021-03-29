@@ -30,7 +30,7 @@ struct ChatView: View {
                 VStack (spacing: 0) {
                     VStack {
                         HStack {
-                            NavigationLink(destination: UserView(user: self.chatVM.chatToUser, invitable: false, isPreview: true, show: $showChatTo)) {
+                            NavigationLink(destination: UserView(invitable: false, isPreview: true, show: $showChatTo)) {
                                 BarWebImage(url: self.chatVM.chatToUser.profURL, radius: 0)
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
@@ -331,7 +331,7 @@ struct PullUpMenuView: View {
                         }
                         Spacer()
                         VStack {
-                            NavigationLink(destination: UserView(user: chatTo, invitable: false, isPreview: true, show: $showChatTo)) {
+                            NavigationLink(destination: UserView(invitable: false, isPreview: true, show: $showChatTo)) {
                                 Image(systemName: "person.fill")
                                     .resizable()
                                     .frame(width: 20, height: 20)

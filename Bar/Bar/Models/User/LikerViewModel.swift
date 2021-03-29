@@ -9,12 +9,21 @@ import Foundation
 import Firebase
 import FirebaseFirestore
 
+/*
+ Responsibilities of the Liker View Model:
+    - Contains array of "likers," (people who send current user an invitation)
+    
+    - Contains user instance "matcher," who accepts an invitation from current user
+        • current user has two ways to match: push match from my side, or liker pushes match from their side
+    - Requested Matcher is the current 
+ */
+
 class LikerViewModel: ObservableObject {
     @Published var likers = [User]()
-    @Published var matcher = [User]()
     @Published var likeCards = [LikeCard]()
-    @Published var likedUser = TempUserLib().emptyUser
-    @Published var matchedUser = TempUserLib().emptyUser
+    @Published var sendInviteToUser: User = TempUserLib().emptyUser
+    @Published var matcher: User = TempUserLib().emptyUser
+    @Published var requestedMatcher: User = TempUserLib().emptyUser
     private var currentUser = Auth.auth().currentUser
     private var db = Firestore.firestore()
     
@@ -22,7 +31,7 @@ class LikerViewModel: ObservableObject {
         fetchData()
     }
     
-    //NEEDS UPDATING LATER
+    // NEEDS UPDATING LATER - how about now hehehe
     func fetchData() {
         guard let userID = currentUser?.uid else { return }
         let docRef = db.collection("users").document(userID)
@@ -49,30 +58,31 @@ class LikerViewModel: ObservableObject {
             }
         }
         
-        docRef.collection("matcher").addSnapshotListener { (snap, error) in
+        docRef.addSnapshotListener { (doc, error) in
             if error != nil {
                 print(error!.localizedDescription)
                 return
             }
-            guard let data = snap?.documents else { return }
-            
-            data.forEach { (doc) in
-                self.db.collection("users").document(doc.documentID).addSnapshotListener { (snap, error) in
-                    if error != nil { return }
-                    if let user = try? snap?.data(as: User.self) {
+            guard let matcherID = doc?.get("matcherID") as? String else { return }
+            if !matcherID.isEmpty {
+                self.db.collection("users").document(matcherID).addSnapshotListener { (doc, error) in
+                    if error != nil {
+                        print(error!.localizedDescription)
+                        return
+                    }
+                    guard let doc = doc else { return }
+                    if let matcher = try? doc.data(as: User.self) {
                         DispatchQueue.main.async {
-                            var userVar = user
-                            userVar.setID(id: doc.documentID)
-
-                            if !self.matcher.contains(userVar) {
-                                self.matcher.append(userVar)
-                                self.matchedUser = userVar
-                            }
+                            self.matcher = matcher
                         }
                     }
                 }
             }
         }
+    }
+    
+    func setInvitedUser(user: User) {
+        self.sendInviteToUser = user
     }
     
     func pop(idToRemove: String) {
@@ -85,19 +95,33 @@ class LikerViewModel: ObservableObject {
     func removeMatcher(idToRemove: String) {
         guard let myUID = currentUser?.uid else { return }
         let docRef = db.collection("users").document(myUID)
-        self.matcher.removeAll()
+        self.matcher = TempUserLib().emptyUser
         docRef.collection("matcher").document(idToRemove).delete()
         docRef.setData(["matcherID" : ""], merge: true)
     }
     
+    func removeAllLikers() {
+        guard let myUID = currentUser?.uid else { return }
+        let docRef = self.db.collection("users").document(myUID).collection("likers")
+        docRef.addSnapshotListener { (snap, error) in
+            if error != nil {
+                print(error!.localizedDescription)
+                return
+            }
+            guard let data = snap?.documents else { return }
+            data.forEach { (doc) in
+                docRef.document(doc.documentID).delete()
+            }
+        }
+    }
+    
     // likeToID refers to the ID of the person the like is being sent to
-    func addLiker(likeToID: String, heading: String, subheading: String, comment: String) {
-        
+    func sendInvite(heading: String, subheading: String, comment: String) {
         // myUID = current user in-app's ID
         guard let myUID = currentUser?.uid else { return }
         
         // docRef = Firebase reference for likeTo document
-        let docRef = db.collection("users").document(likeToID)
+        let docRef = db.collection("users").document(self.sendInviteToUser.id ?? "NOT-A-UID")
         
         // add like to numLikes
         docRef.getDocument { (snap, error) in
@@ -116,22 +140,11 @@ class LikerViewModel: ObservableObject {
         ])
     }
     
-    func removeAllLikers() {
-        guard let myUID = currentUser?.uid else { return }
-        let docRef = db.collection("users").document(myUID)
-        docRef.collection("liker").getDocuments { (snap, error) in
-            guard let data = snap else { return }
-            data.documents.forEach { (doc) in
-                self.db.collection("users").document(myUID).collection("likers").document(doc.documentID).delete()
-            }
-        }
-    }
-    
     func requestMatch() {
-        guard let userID = currentUser?.uid else { return }
-        guard let id = self.likedUser.id else { return }
+        guard let myUID = currentUser?.uid else { return }
+        guard let id = self.requestedMatcher.id else { return }
         let matcherDocRef = db.collection("users").document(id)
-        let myDocRef = db.collection("users").document(userID)
+        let myDocRef = db.collection("users").document(myUID)
         
         // set my matcherID to matchTo ID
         myDocRef.getDocument { (snap, error) in
@@ -141,8 +154,8 @@ class LikerViewModel: ObservableObject {
         }
         
         // set collection data
-        matcherDocRef.collection("matcher").document(userID).setData([
-            "id" : userID
+        matcherDocRef.collection("matcher").document(myUID).setData([
+            "id" : myUID
         ])
     }
     
@@ -166,23 +179,13 @@ class LikerViewModel: ObservableObject {
         }
         
         // delete document in matcher
-        self.matcher.removeAll()
+        self.matcher = TempUserLib().emptyUser
         matcherDocRef.collection("matcher").document(userID).delete()
         myDocRef.collection("matcher").document(id).delete()
     }
     
     func checkHasMatcher() -> Bool {
-        var hasMatcher = false
-        guard let userID = currentUser?.uid else { return false }
-        let docRef = db.collection("users").document(userID)
-        docRef.addSnapshotListener { (snap, error) in
-            guard let data = snap else { return }
-            let matcherID = data.get("matcherID") as! String
-            if matcherID != "" {
-                hasMatcher = true
-            }
-        }
-        return hasMatcher
+        return self.matcher != TempUserLib().emptyUser
     }
     
     func match(matchToID: String) {
@@ -215,20 +218,19 @@ class LikerViewModel: ObservableObject {
     }
     
     func refreshLikeCards() {
-        self.likeCards = likersToCards(users: self.likers)
         if self.likeCards.count > 0 {
-            self.likedUser = likeCards[0].user
+            self.requestedMatcher = likeCards[0].user
         }
     }
     
-    func updateLikedUser() {
-        self.likedUser = likeCards[0].user
+    func updateRequestedMatcher() {
+        self.requestedMatcher = likeCards[0].user
     }
     
     func dismissUser(counter: Int) {
-        guard let id = likedUser.id else { return }
+        guard let id = requestedMatcher.id else { return }
         self.pop(idToRemove: id)
-        self.likedUser = likeCards[counter < likeCards.count ? counter : 0].user
+        self.requestedMatcher = likeCards[counter < likeCards.count ? counter : 0].user
     }
     
     func generatePronouns(user: User) -> [String] {

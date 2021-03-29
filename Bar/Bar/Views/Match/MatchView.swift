@@ -27,7 +27,7 @@ struct MatchView: View {
                     HStack {
                         SystemText(text: currentUserVM.currentUser.firstName, fontstyle: .headerBold)
                         Image(systemName: "xmark")
-                        SystemText(text: likerVM.matchedUser.firstName, fontstyle: .headerBold)
+                        SystemText(text: likerVM.matcher.firstName, fontstyle: .headerBold)
                         Spacer()
                     }
                     .padding(.vertical)
@@ -39,7 +39,7 @@ struct MatchView: View {
                                 .clipShape(Circle())
                                 .background(Circle().stroke(Color("Pink"), lineWidth: 10))
                                 .padding(.horizontal)
-                            BarWebImage(url: likerVM.matchedUser.profURL, radius: 0)
+                            BarWebImage(url: likerVM.matcher.profURL, radius: 0)
                                 .frame(maxHeight: UIScreen.main.bounds.height / 6)
                                 .clipShape(Circle())
                                 .background(Circle().stroke(Color.white, lineWidth: 10))
@@ -47,7 +47,7 @@ struct MatchView: View {
                         }
                         SystemText(text: "It's a Match!", fontstyle: .headerBold)
                         Spacer().frame(height: 15)
-                        SystemText(text: "After you confirm, you will have 20 minutes to share your contact information with \(likerVM.matchedUser.firstName)", fontstyle: .regular)
+                        SystemText(text: "After you confirm, you will have 20 minutes to share your contact information with \(likerVM.matcher.firstName)", fontstyle: .regular)
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -59,7 +59,7 @@ struct MatchView: View {
                 VStack {
                     // Start Your Conversation Button
                     Button {
-                        self.likerVM.match(matchToID: likerVM.matchedUser.id ?? "")
+                        self.likerVM.match(matchToID: likerVM.matcher.id ?? "")
                         self.showChat.toggle()
                     } label: {
                         StandardButtonView(text: "Start Your Conversation")
@@ -68,7 +68,7 @@ struct MatchView: View {
                     
                     // Change Your Mind Button
                     Button {
-                        self.likerVM.declineMatcher(id: likerVM.matchedUser.id!)
+                        self.likerVM.declineMatcher(id: likerVM.matcher.id!)
                         self.showMatchView.toggle()
                     } label: {
                         SystemText(text: "I've Changed My Mind", fontstyle: .regularBold)

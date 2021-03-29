@@ -48,7 +48,6 @@ struct InBarView: View {
                     Spacer()
                     Button(action: {
                         self.presentAlert.toggle()
-                        print("matcher count is: " + "\(self.likerVM.matcher.count)")
                     }, label: {
                         StandardButtonView(text: "Bar Hop")
                             .frame(width: UIScreen.main.bounds.width / 5)
@@ -139,14 +138,13 @@ struct InBarView: View {
             }
             .padding(20)
             // show invite overlay view
-            VStack {
-                if showInvite {
-                    SendInviteView(user: likedUser, heading: $heading, subheading: $subheading, inviteType: $inviteType, comment: $comment, showInviteView: $showInvite)
-                }
-            }.transition(.opacity).animation(.easeInOut)
+            if self.showInvite {
+                SendInviteView(heading: $heading, subheading: $subheading, inviteType: $inviteType, comment: $comment, showInviteView: $showInvite)
+                    .transition(.opacity).animation(.easeInOut)
+            }
             // if they receive a matcher, show the matchview
             VStack {
-                if self.likerVM.matcher.count > 0 {
+                if self.likerVM.matcher != TempUserLib().emptyUser {
                     Text("").onAppear { self.showMatchView.toggle() }
                 }
                 if showMatchView {
@@ -163,7 +161,6 @@ struct InBarView: View {
                   primaryButton: .cancel(),
                   secondaryButton: .default(Text("Yes, I want to leave"), action: {
                     self.currentUserVM.changeUserValueDB(key: "currentBarID", value: "")
-                    self.likerVM.removeAllLikers()
                     self.userVM.clearUsers()
                     self.barHopActive = true
                   }))
@@ -181,14 +178,14 @@ struct InBarView: View {
         if #available(iOS 14.0, *) {
             LazyVGrid(columns: twoColumnGrid) {
                 ForEach(userVM.users) { user in
-                    ProfilePreView(height: 250, user: user, showInvite: $showInvite, likedUser: $likedUser)
+                    ProfilePreView(height: 250, user: user, showInvite: $showInvite)
                         .id(user.id)
                 }
             }
             .padding(5)
         } else {
             ForEach(userVM.users) { user in
-                ProfilePreView(height: UIScreen.main.bounds.height / 2, user: user, showInvite: $showInvite, likedUser: $likedUser)
+                ProfilePreView(height: UIScreen.main.bounds.height / 2, user: user, showInvite: $showInvite)
             }
         }
     }
@@ -200,12 +197,11 @@ struct ProfilePreView: View {
     let height: CGFloat
     let user: User
     @Binding var showInvite: Bool
-    @Binding var likedUser: User
     @State var show = false
     
     var body: some View {
         NavigationLink(destination:
-                        UserView(user: user, invitable: true, isPreview: false, show: $show)
+                        UserView(invitable: true, isPreview: false, show: $show)
                         .environmentObject(self.likerVM)
                         .environmentObject(self.userVM)
                        , isActive: $show) {
@@ -224,7 +220,7 @@ struct ProfilePreView: View {
                     Spacer()
                     Button(action: {
                         self.showInvite = true
-                        self.likedUser = user
+                        self.likerVM.setInvitedUser(user: self.user)
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     }, label: {
                         Image("like icon")
@@ -237,6 +233,9 @@ struct ProfilePreView: View {
             .cornerRadius(10)
             .frame(height: height)
         }
+        .simultaneousGesture(TapGesture().onEnded {
+            self.userVM.setInspectedUser(user: user)
+        })
     }
 }
 

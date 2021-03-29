@@ -14,9 +14,9 @@ struct UserView: View {
     @EnvironmentObject var likerVM: LikerViewModel
     @EnvironmentObject var userVM: UserViewModel
     
-    @State var user: User
     @State var invitable: Bool
     @State var isPreview: Bool
+    
     @Binding var show: Bool
     @State var inviteType: InviteType = .normal
     @State var showInviteView = false
@@ -25,6 +25,10 @@ struct UserView: View {
     @State var sendHeading: String = ""
     @State var sendSubHeading: String = ""
     @State var showChat = false
+    
+    var user: User {
+        return self.userVM.inspectedUser
+    }
     
     var body: some View {
         ZStack {
@@ -101,7 +105,7 @@ struct UserView: View {
             }
             VStack {
                 if showInviteView {
-                    SendInviteView(user: user, heading: $sendHeading, subheading: $sendSubHeading, inviteType: $inviteType, comment: $comment, showInviteView: $showInviteView)
+                    SendInviteView(heading: $sendHeading, subheading: $sendSubHeading, inviteType: $inviteType, comment: $comment, showInviteView: $showInviteView)
                 }
             }.transition(.opacity).animation(.easeInOut)
         }
@@ -314,6 +318,9 @@ struct PersonalityCardsView: View {
 }
 
 struct PersonalityCardView: View {
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     let headingLabel: String
     let quoteLabel: String
     let alternator: Int
@@ -396,8 +403,12 @@ struct PersonalityCardView: View {
 }
 
 struct RespondButtonView: View {
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
     let headingLabel: String
     let quoteLabel: String
+    
     @Binding var showInviteView: Bool
     @Binding var inviteType: InviteType
     @Binding var heading: String
@@ -410,6 +421,7 @@ struct RespondButtonView: View {
                 self.inviteType = .like
                 self.heading = headingLabel
                 self.subHeading = quoteLabel
+                self.likerVM.setInvitedUser(user: self.userVM.inspectedUser)
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }, label: {
                 Image("like icon")
@@ -432,15 +444,5 @@ struct RespondButtonView: View {
             })
         }
         .padding()
-    }
-}
-
-struct UserView_Previews: PreviewProvider {
-    @State static var show = true
-    @State static var isPreview = false
-    @State static var inviteType: InviteType = .normal
-    @State static var user = TempUserLib().user1
-    static var previews: some View {
-        UserView(user: user, invitable: false, isPreview: isPreview, show: $show)
     }
 }

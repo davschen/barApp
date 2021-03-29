@@ -19,7 +19,7 @@ struct WaitingForMatchView: View {
     
     var body: some View {
         ZStack {
-            let matcher = likerVM.likedUser
+            let matcher = likerVM.requestedMatcher
             VisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
                 .edgesIgnoringSafeArea(.all)
             VStack {
@@ -49,15 +49,6 @@ struct WaitingForMatchView: View {
                 }
             }
             .padding(.horizontal, 40)
-            // If you're waiting for match, you don't yet have a matcher.
-            if self.likerVM.matcher.count == 1 {
-                Text("").onAppear { self.showChat.toggle() }
-            }
-            NavigationLink(destination: ChatView(showChat: $showChat)
-                            .environmentObject(self.chatVM)
-                            .environmentObject(self.likerVM)
-                           , isActive: $showChat) {
-            }.hidden()
         }
         .edgesIgnoringSafeArea(.all)
         .navigationBarHidden(true)

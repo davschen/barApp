@@ -12,6 +12,7 @@ import FirebaseFirestoreSwift
 
 class UserViewModel: ObservableObject {
     @Published var users = [User]()
+    @Published var inspectedUser: User = TempUserLib().emptyUser
     private var db = Firestore.firestore()
     private var currentUser = Auth.auth().currentUser
     
@@ -52,6 +53,10 @@ class UserViewModel: ObservableObject {
                     }
             }
         }
+    }
+    
+    func setInspectedUser(user: User) {
+        self.inspectedUser = user
     }
     
     func removeFromBar(id: String) {

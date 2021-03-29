@@ -19,14 +19,17 @@ class ChatViewModel: ObservableObject {
     @Published var respondMessageID = ""
     @Published var lastMessageID = ""
     
-    let ref = Firestore.firestore()
+    private var db = Firestore.firestore()
+    private var myUID: String {
+        return Auth.auth().currentUser?.uid ?? "NOT-AN-ID"
+    }
     
     init() {
         readAllMessages()
     }
     
     func readAllMessages() {
-        ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").order(by: "timestamp").addSnapshotListener { (snap, err) in
+        db.collection("users").document(self.myUID).collection("messages").order(by: "timestamp").addSnapshotListener { (snap, err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
@@ -39,15 +42,15 @@ class ChatViewModel: ObservableObject {
     }
     
     func writeMessage() {
-        let message = Message(text: self.text, senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: self.respondToID, lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: self.respondMessageID)
-        let _ = try? ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").addDocument(from: message) { (err) in
+        let message = Message(text: self.text, senderID: myUID, timestamp: Date(), response: self.response, respondToID: self.respondToID, lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: self.respondMessageID)
+        let _ = try? db.collection("users").document(self.myUID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
             }
         }
-        
-        let _ = try? ref.collection("users").document(self.chatToUser.id!).collection("messages").addDocument(from: message) { (err) in
+        guard let chatToUserID = self.chatToUser.id else { return }
+        let _ = try? db.collection("users").document(chatToUserID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
@@ -62,26 +65,28 @@ class ChatViewModel: ObservableObject {
     
     func deleteMessages() {
         guard let userID = Auth.auth().currentUser?.uid else { return }
-        ref.collection("users").document(userID).collection("messages").getDocuments { (snap, err) in
+        db.collection("users").document(userID).collection("messages").getDocuments { (snap, err) in
             guard let data = snap else { return }
+            guard let chatToUserID = self.chatToUser.id else { return }
             data.documents.forEach { (doc) in
-                self.ref.collection("users").document(userID).collection("messages").document(doc.documentID).delete()
-                self.ref.collection("users").document(self.chatToUser.id!).collection("messages").document(doc.documentID).delete()
+                self.db.collection("users").document(userID).collection("messages").document(doc.documentID).delete()
+                self.db.collection("users").document(chatToUserID).collection("messages").document(doc.documentID).delete()
             }
         }
     }
     
     func shareContact() {
-        let message = Message(text: Auth.auth().currentUser!.phoneNumber ?? "Couldn't send contact", senderID: Auth.auth().currentUser!.uid, timestamp: Date(), response: self.response, respondToID: "", lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: "")
+        guard let currentUser = Auth.auth().currentUser else { return }
+        let message = Message(text: currentUser.phoneNumber ?? "Couldn't send contact", senderID: self.myUID, timestamp: Date(), response: self.response, respondToID: "", lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: "")
 
-        let _ = try? ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").addDocument(from: message) { (err) in
+        let _ = try? db.collection("users").document(self.myUID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
             }
         }
-
-        let _ = try? ref.collection("users").document(self.chatToUser.id!).collection("messages").addDocument(from: message) { (err) in
+        guard let chatToUserID = self.chatToUser.id else { return }
+        let _ = try? db.collection("users").document(chatToUserID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
@@ -98,7 +103,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func addReaction(messageID: String, emoji: String) {
-        ref.collection("users").document(Auth.auth().currentUser!.uid).collection("messages").document(messageID).setData([
+        db.collection("users").document(self.myUID).collection("messages").document(messageID).setData([
             "reaction" : emoji
         ], merge: true)
     }

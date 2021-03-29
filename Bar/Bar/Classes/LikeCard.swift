@@ -10,22 +10,20 @@ import SwiftUI
 
 struct LikeCard: Identifiable, Hashable {
     var user: User
+    var heading: String
+    var subHeading: String
+    var comment: String
     var id: Int
     var offset: CGFloat
     
-    init(user: User, id: Int) {
+    init(user: User, heading: String, subHeading: String, comment: String, id: Int) {
         self.user = user
+        self.heading = heading
+        self.subHeading = subHeading
+        self.comment = comment
         self.id = id
         self.offset = 0
     }
-}
-
-func likersToCards(users: [User]) -> [LikeCard] {
-    var likeCards: [LikeCard] = []
-    for i in 0..<users.count {
-        likeCards.append(LikeCard(user: users[i], id: i))
-    }
-    return likeCards
 }
 
 struct LikersToCards {

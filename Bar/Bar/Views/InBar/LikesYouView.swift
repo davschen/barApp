@@ -11,6 +11,7 @@ import SwiftUI
 struct LikesYouView: View {
     @EnvironmentObject var chatVM: ChatViewModel
     @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
     @State var counter = 0
     @State var offset = CGSize.zero
     @State var noLikeOpacity = 0.0
@@ -27,12 +28,6 @@ struct LikesYouView: View {
                 ZStack {
                     if self.likerVM.likers.count == 0 {
                         NoLikerView()
-                    } else {
-                        Text("").opacity(0)
-                            .onAppear {
-                                self.counter = 0
-                                self.likerVM.refreshLikeCards()
-                            }
                     }
                     ForEach(self.likerVM.likeCards.reversed()) { likeCard in
                         let liker: User = likeCard.user
@@ -46,7 +41,7 @@ struct LikesYouView: View {
                                     Spacer()
                                     HStack {
                                         NavigationLink(
-                                            destination: UserView(user: self.likerVM.likedUser, invitable: false, isPreview: false, show: $showUser).environmentObject(self.likerVM),
+                                            destination: UserView(invitable: false, isPreview: false, show: $showUser).environmentObject(self.likerVM),
                                             isActive: $showUser) {
                                                 Text("Show More")
                                                     .font(Font.custom("Avenir Next Demi Bold", size: 12))
@@ -55,6 +50,9 @@ struct LikesYouView: View {
                                                     .background(Color("Pink"))
                                                     .cornerRadius(10)
                                             }
+                                        .simultaneousGesture(TapGesture().onEnded {
+                                            self.userVM.setInspectedUser(user: self.likerVM.likers.last ?? TempUserLib().emptyUser)
+                                        })
                                         .padding()
                                         Spacer()
                                     }
@@ -93,12 +91,12 @@ struct LikesYouView: View {
             VStack {
                 Spacer()
                 if counter < likerVM.likeCards.count {
-                    YesNoButtonView(likedUser: self.likerVM.likedUser, showWaitView: $showWaitView, vOffset: $vOffset, pressDislike: $pressDislike)
+                    YesNoButtonView(likedUser: self.likerVM.requestedMatcher, showWaitView: $showWaitView, vOffset: $vOffset, pressDislike: $pressDislike)
                         .padding(.bottom)
                 }
             }
             VStack {
-                if self.likerVM.matcher.count != 0 {
+                if self.likerVM.matcher != TempUserLib().emptyUser {
                     Text("").onAppear { self.showWaitView = true }
                 }
                 if showWaitView {
@@ -112,9 +110,10 @@ struct LikesYouView: View {
         .navigationBarTitle("Who's Lovin' You", displayMode: .inline)
     }
     func requestMatch() {
-        self.likerVM.updateLikedUser()
+        self.likerVM.updateRequestedMatcher()
         self.likerVM.requestMatch()
-        counter += 1
+        self.userVM.setInspectedUser(user: self.likerVM.requestedMatcher)
+        self.counter += 1
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
     func calculateSize(i: Int = 0) -> CGSize {
@@ -124,7 +123,7 @@ struct LikesYouView: View {
         return CGSize(width: w, height: h)
     }
     func dislike() {
-        counter += 1
+        self.counter += 1
         self.likerVM.dismissUser(counter: counter)
     }
 }
@@ -168,7 +167,6 @@ struct LikesYouView_Previews: PreviewProvider {
         LikesYouView()
     }
 }
-
 
 struct YesNoButtonView: View {
     @State var likedUser: User
