@@ -97,7 +97,6 @@ class LikerViewModel: ObservableObject {
         let idToRemove = self.requestedMatcher.id ?? "NOT-AN-ID"
         guard let myUID = currentUser?.uid else { return }
         let docRef = db.collection("users").document(myUID)
-        print(idToRemove)
         docRef.collection("likers").document(idToRemove).delete()
         if self.likers.count > 0 {
             self.likers.removeFirst()
@@ -168,7 +167,6 @@ class LikerViewModel: ObservableObject {
             let invitedUserHasMatch = doc?.get("hasMatch") as? Bool ?? true
             let invitedMatcherID = doc?.get("matcherID") as? String ?? ""
             if !invitedUserHasMatch || invitedMatcherID == (self.currentUser?.uid ?? "NOT-AN-ID") {
-                // set my matcherID to matchTo ID
                 matcherDocRef.setData([
                     "matcherID" : id,
                     "hasMatch" : true
@@ -180,20 +178,22 @@ class LikerViewModel: ObservableObject {
     }
     
     // called whenever the current user "changes their mind," so to speak, on their match before starting convo.
-    func declineMatcher(id: String) {
-        guard let userID = currentUser?.uid else { return }
-        let matcherDocRef = db.collection("users").document(id)
-        let myDocRef = db.collection("users").document(userID)
-        
+    func declineMatcher() {
+        self.pop()
+        guard let myUID = currentUser?.uid else { return }
+        let matcherDocRef = db.collection("users").document(self.matcher.id ?? "")
+        let myDocRef = db.collection("users").document(myUID)
         // set matchTo matcherID value to my UID
         matcherDocRef.getDocument { (snap, error) in
-            matcherDocRef.setData([
-                "hasMatch" : false,
-                "conversationID" : "",
-                "matcherID" : ""
-            ], merge: true)
+            let matcherID = snap?.get("matcherID") as! String
+            if matcherID == myUID {
+                matcherDocRef.setData([
+                    "hasMatch" : false,
+                    "conversationID" : "",
+                    "matcherID" : ""
+                ], merge: true)
+            }
         }
-        
         // set my matcherID to matchTo ID
         myDocRef.getDocument { (snap, error) in
             myDocRef.setData([
@@ -202,7 +202,6 @@ class LikerViewModel: ObservableObject {
                 "matcherID" : ""
             ], merge: true)
         }
-        self.pop()
     }
     
     func acceptMatch(matchToID: String) {

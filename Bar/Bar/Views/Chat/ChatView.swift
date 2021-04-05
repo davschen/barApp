@@ -203,7 +203,7 @@ struct ChatView: View {
                 }
             }
             ZStack {
-                PullUpMenuView(chatTo: self.chatVM.chatToUser, showChatTo: $showChatTo, showsMenu: $showsMenu, timeRemaining: $timeRemaining, chatVM: self.chatVM, showChat: $showChat)
+                PullUpMenuView(chatTo: self.chatVM.chatToUser, showChatTo: $showChatTo, showsMenu: $showsMenu, timeRemaining: $timeRemaining, showChat: $showChat)
             }.transition(.opacity).animation(.easeInOut)
         }
         .onReceive(timer) { time in
@@ -229,7 +229,7 @@ struct ChatView: View {
     }
     
     func reject() {
-        self.likerVM.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
+        self.likerVM.declineMatcher()
         self.showChat.toggle()
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
@@ -276,12 +276,14 @@ struct DynamicTextFieldChatView: View {
 }
 
 struct PullUpMenuView: View {
+    @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    
     @State var chatTo: User
     @Binding var showChatTo: Bool
     @Binding var showsMenu: Bool
     @Binding var timeRemaining: Double
-    @StateObject var chatVM: ChatViewModel
-    @EnvironmentObject var likerVM: LikerViewModel
+    
     @Binding var showChat: Bool
     @State var vOffset: CGFloat = 0
     
@@ -305,7 +307,7 @@ struct PullUpMenuView: View {
                     HStack {
                         VStack {
                             Button {
-                                self.likerVM.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
+                                self.likerVM.declineMatcher()
                                 self.showChat.toggle()
                             } label: {
                                 Image(systemName: "xmark")

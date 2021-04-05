@@ -23,7 +23,6 @@ struct InBarView: View {
     @State var subheading = ""
     @State var comment = ""
     @State var presentAlert = false
-    @State var showMatchView = false
     @State var showUserView = false
     
     @Binding var presentInBarView: Bool
@@ -145,7 +144,7 @@ struct InBarView: View {
                     SendInviteView(heading: heading, subheading: subheading, inviteType: $inviteType, comment: comment, showInviteView: $showInvite, showUserView: $showUserView)
                 }
                 if self.currentUserVM.currentUser.hasMatch {
-                    MatchView(showMatchView: $currentUserVM.currentUser.hasMatch)
+                    MatchView()
                         .environmentObject(self.chatVM)
                         .environmentObject(self.currentUserVM)
                         .environmentObject(self.likerVM)

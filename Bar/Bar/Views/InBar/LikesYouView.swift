@@ -88,7 +88,7 @@ struct LikesYouView: View {
         }
     }
     func requestMatch() {
-        self.chatVM.createConversationDocument(userID: self.likerVM.requestedMatcher.id ?? "NOT-AN-ID")
+        //self.chatVM.createConversationDocument(userID: self.likerVM.requestedMatcher.id ?? "NOT-AN-ID")
         self.likerVM.requestMatch()
         self.userVM.setInspectedUser(user: self.likerVM.requestedMatcher)
         self.showWaitView.toggle()

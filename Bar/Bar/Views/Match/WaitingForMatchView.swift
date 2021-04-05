@@ -47,7 +47,7 @@ struct WaitingForMatchView: View {
                 Button {
                     if allowsBack {
                         self.showWaitView.toggle()
-                        self.likerVM.declineMatcher(id: matcher.id ?? "NOT-AN-ID")
+                        self.likerVM.declineMatcher()
                     }
                 } label: {
                     // e.g. Back (10) if timeRemaining <= 0, else Back

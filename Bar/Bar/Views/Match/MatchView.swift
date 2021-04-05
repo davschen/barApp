@@ -13,7 +13,6 @@ struct MatchView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @EnvironmentObject var likerVM: LikerViewModel
     @State var showChat = false
-    @Binding var showMatchView: Bool
     
     var body: some View {
         ZStack {
@@ -68,7 +67,7 @@ struct MatchView: View {
                     
                     // Change Your Mind Button
                     Button {
-                        self.likerVM.declineMatcher(id: likerVM.matcher.id ?? "NOT-AN-ID")
+                        self.likerVM.declineMatcher()
                     } label: {
                         SystemText(text: "I've Changed My Mind", fontstyle: .regularBold)
                             .padding(.vertical, 10)
@@ -89,8 +88,5 @@ struct MatchView: View {
             .navigationBarTitle("")
         }
         .edgesIgnoringSafeArea(.all)
-        .onAppear {
-            
-        }
     }
 }
