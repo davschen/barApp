@@ -10,6 +10,7 @@ import SwiftUI
 import Firebase
 
 class ChatViewModel: ObservableObject {
+    @Published var conversationID = ""
     @Published var messages = [Message]()
     @Published var chatToUser = TempUserLib().emptyUser
     @Published var text = ""
@@ -18,6 +19,7 @@ class ChatViewModel: ObservableObject {
     @Published var lastMessageSenderID = ""
     @Published var respondMessageID = ""
     @Published var lastMessageID = ""
+    @Published var timeBegan = Date()
     
     private var db = Firestore.firestore()
     private var myUID: String {
@@ -29,64 +31,76 @@ class ChatViewModel: ObservableObject {
     }
     
     func readAllMessages() {
-        db.collection("users").document(self.myUID).collection("messages").order(by: "timestamp").addSnapshotListener { (snap, err) in
-            if err != nil {
-                print(err!.localizedDescription)
+        if !self.conversationID.isEmpty {
+            let docRef = db.collection("conversations").document(self.conversationID)
+            docRef.collection("messages").order(by: "timestamp").addSnapshotListener { (snap, err) in
+                if err != nil {
+                    print(err!.localizedDescription)
+                    return
+                }
+                guard let data = snap?.documents else { return }
+                self.messages = data.compactMap { (query) -> Message? in
+                    return try? query.data(as: Message.self)
+                }
+            }
+        }
+        let myDocRef = db.collection("users").document(myUID)
+        myDocRef.addSnapshotListener { (doc, error) in
+            if error != nil {
+                print(error!.localizedDescription)
                 return
             }
-            guard let data = snap?.documents else { return }
-            self.messages = data.compactMap { (query) -> Message? in
-                return try? query.data(as: Message.self)
+            guard let matcherID = doc?.get("matcherID") as? String else { return }
+            if !matcherID.isEmpty {
+                self.db.collection("users").document(matcherID).addSnapshotListener { (doc, error) in
+                    if error != nil {
+                        print(error!.localizedDescription)
+                        return
+                    }
+                    guard let doc = doc else { return }
+                    if let matcher = try? doc.data(as: User.self) {
+                        DispatchQueue.main.async {
+                            var userVar = matcher
+                            userVar.setID(id: doc.documentID)
+                            self.chatToUser = userVar
+                        }
+                    }
+                }
             }
         }
     }
     
+    func createConversationDocument(userID: String) {
+        let docRef = db.collection("conversations").document()
+        docRef.setData([
+            "timeBegan" : Date()
+        ])
+        let myDocRef = db.collection("users").document(self.myUID)
+        myDocRef.setData([
+            "conversationID" : docRef.documentID
+        ], merge: true)
+        self.conversationID = docRef.documentID
+    }
+    
     func writeMessage() {
         let message = Message(text: self.text, senderID: myUID, timestamp: Date(), response: self.response, respondToID: self.respondToID, lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: self.respondMessageID)
-        let _ = try? db.collection("users").document(self.myUID).collection("messages").addDocument(from: message) { (err) in
+        let _ = try? db.collection("conversations").document(self.conversationID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
             }
         }
-        guard let chatToUserID = self.chatToUser.id else { return }
-        let _ = try? db.collection("users").document(chatToUserID).collection("messages").addDocument(from: message) { (err) in
-            if err != nil {
-                print(err!.localizedDescription)
-                return
-            }
-        }
-        
         self.response = ""
         self.respondToID = ""
         self.respondMessageID = ""
         self.text = ""
     }
     
-    func deleteMessages() {
-        guard let userID = Auth.auth().currentUser?.uid else { return }
-        db.collection("users").document(userID).collection("messages").getDocuments { (snap, err) in
-            guard let data = snap else { return }
-            guard let chatToUserID = self.chatToUser.id else { return }
-            data.documents.forEach { (doc) in
-                self.db.collection("users").document(userID).collection("messages").document(doc.documentID).delete()
-                self.db.collection("users").document(chatToUserID).collection("messages").document(doc.documentID).delete()
-            }
-        }
-    }
-    
     func shareContact() {
         guard let currentUser = Auth.auth().currentUser else { return }
         let message = Message(text: currentUser.phoneNumber ?? "Couldn't send contact", senderID: self.myUID, timestamp: Date(), response: self.response, respondToID: "", lastMessageSenderID: self.lastMessageSenderID, reaction: "", respondMessageID: "")
 
-        let _ = try? db.collection("users").document(self.myUID).collection("messages").addDocument(from: message) { (err) in
-            if err != nil {
-                print(err!.localizedDescription)
-                return
-            }
-        }
-        guard let chatToUserID = self.chatToUser.id else { return }
-        let _ = try? db.collection("users").document(chatToUserID).collection("messages").addDocument(from: message) { (err) in
+        let _ = try? db.collection("conversations").document(self.conversationID).collection("messages").addDocument(from: message) { (err) in
             if err != nil {
                 print(err!.localizedDescription)
                 return
@@ -103,7 +117,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func addReaction(messageID: String, emoji: String) {
-        db.collection("users").document(self.myUID).collection("messages").document(messageID).setData([
+        db.collection("conversations").document(self.conversationID).collection("messages").document(messageID).setData([
             "reaction" : emoji
         ], merge: true)
     }

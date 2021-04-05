@@ -10,13 +10,14 @@ import SwiftUI
 
 struct LikesYouView: View {
     @EnvironmentObject var chatVM: ChatViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @EnvironmentObject var likerVM: LikerViewModel
     @EnvironmentObject var userVM: UserViewModel
-    @State var counter = 0
+    
     @State var offset = CGSize.zero
     @State var noLikeOpacity = 0.0
     @State var showUser = false
-    @State var vOffset = CGSize.zero
+    @State var hOffset = CGSize.zero
     @State var pressDislike = false
     @State var showWaitView = false
     
@@ -31,74 +32,47 @@ struct LikesYouView: View {
                     }
                     ForEach(self.likerVM.likeCards.reversed()) { likeCard in
                         let liker: User = likeCard.user
-                        HStack {
-                            ZStack {
-                                PictureViews(pvUser: liker, showsButton: true, showUser: $showUser)
-                                    .frame(width: calculateSize().width, height: calculateSize(i: likeCard.id).height)
-                                    .cornerRadius(10)
-                                    .offset(x: likeCard.id - counter <= 2 ? CGFloat(likeCard.id - counter) * 5 : 5)
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        NavigationLink(
-                                            destination: UserView(invitable: false, isPreview: false, show: $showUser).environmentObject(self.likerVM),
-                                            isActive: $showUser) {
-                                                Text("Show More")
-                                                    .font(Font.custom("Avenir Next Demi Bold", size: 12))
-                                                    .foregroundColor(.white)
-                                                    .padding(.vertical, 2).padding(.horizontal, 10)
-                                                    .background(Color("Pink"))
-                                                    .cornerRadius(10)
-                                            }
-                                        .simultaneousGesture(TapGesture().onEnded {
-                                            self.userVM.setInspectedUser(user: self.likerVM.likers.last ?? TempUserLib().emptyUser)
-                                        })
-                                        .padding()
-                                        Spacer()
-                                    }
+                        VStack {
+                            HStack {
+                                ZStack {
+                                    LikesYouPreView(user: liker, showUser: $showUser)
+                                        .cornerRadius(10)
+                                        .rotationEffect(Angle(degrees: Double(likeCard.offset) * 0.05))
                                 }
                             }
-                            .offset(y: likeCard.offset)
-                            .gesture(DragGesture()
-                                        .onChanged { gesture in
-                                            withAnimation {
-                                                likerVM.likeCards[likeCard.id].offset = gesture.translation.height
-                                            }
-                                            self.vOffset.height = gesture.translation.height
-                                        }
-                                        .onEnded { gesture in
-                                            withAnimation(.spring()) {
-                                                if self.vOffset.height <= -150 {
-                                                    likerVM.likeCards[likeCard.id].offset = -1000
-                                                    requestMatch()
-                                                    self.showWaitView.toggle()
-                                                } else if self.vOffset.height > 150 {
-                                                    likerVM.likeCards[likeCard.id].offset = 1000
-                                                    dislike()
-                                                } else {
-                                                    likerVM.likeCards[likeCard.id].offset = .zero
-                                                }
-                                            }
-                                            self.vOffset = .zero
-                                        }
-                            )
-                            .frame(width: calculateSize().width, height: UIScreen.main.bounds.height / 1.7)
+                            LikerCommentCardView(user: liker, headingLabel: likeCard.heading, quoteLabel: likeCard.subHeading, comment: likeCard.comment)
+                                .rotationEffect(Angle(degrees: Double(likeCard.offset) * -0.05))
+                            Spacer()
                         }
+                        .padding()
+                        .offset(x: likeCard.offset)
+                        .gesture(DragGesture()
+                                    .onChanged { gesture in
+                                        withAnimation {
+                                            likerVM.likeCards[0].offset = gesture.translation.width
+                                        }
+                                        self.hOffset.width = gesture.translation.width
+                                    }
+                                    .onEnded { gesture in
+                                        withAnimation(.spring()) {
+                                            if self.hOffset.width > 70 {
+                                                likerVM.likeCards[0].offset = 1000
+                                                requestMatch()
+                                            } else if self.hOffset.width <= -70 {
+                                                likerVM.likeCards[0].offset = -1000
+                                                dislike()
+                                            } else {
+                                                likerVM.likeCards[0].offset = .zero
+                                            }
+                                        }
+                                        self.hOffset = .zero
+                                    }
+                        )
                     }
                 }
             }
             // Dynamically sizing buttons based on offset
             VStack {
-                Spacer()
-                if counter < likerVM.likeCards.count {
-                    YesNoButtonView(likedUser: self.likerVM.requestedMatcher, showWaitView: $showWaitView, vOffset: $vOffset, pressDislike: $pressDislike)
-                        .padding(.bottom)
-                }
-            }
-            VStack {
-                if self.likerVM.matcher != TempUserLib().emptyUser {
-                    Text("").onAppear { self.showWaitView = true }
-                }
                 if showWaitView {
                     WaitingForMatchView(showWaitView: $showWaitView)
                         .environmentObject(self.chatVM)
@@ -107,24 +81,184 @@ struct LikesYouView: View {
             }
             .transition(.opacity).animation(.easeInOut)
         }
-        .navigationBarTitle("Who's Lovin' You", displayMode: .inline)
+        .navigationBarTitle(showWaitView ? "" : "Who's Lovin' You", displayMode: .inline)
+        .navigationBarHidden(showWaitView)
+        .onAppear {
+            self.likerVM.updateRequestedMatcher()
+        }
     }
     func requestMatch() {
-        self.likerVM.updateRequestedMatcher()
+        self.chatVM.createConversationDocument(userID: self.likerVM.requestedMatcher.id ?? "NOT-AN-ID")
         self.likerVM.requestMatch()
         self.userVM.setInspectedUser(user: self.likerVM.requestedMatcher)
-        self.counter += 1
+        self.showWaitView.toggle()
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
-    func calculateSize(i: Int = 0) -> CGSize {
-        let screen = UIScreen.main.bounds.size
-        let w = screen.width - 50
-        let h = (screen.height / 1.7) - CGFloat(i - counter) * 30
-        return CGSize(width: w, height: h)
-    }
     func dislike() {
-        self.counter += 1
-        self.likerVM.dismissUser(counter: counter)
+        self.likerVM.dismissUser()
+    }
+}
+
+struct LikesYouPreView: View {
+    @EnvironmentObject var userVM: UserViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    
+    let user: User
+    
+    @State var photoIndex = 0
+    @Binding var showUser: Bool
+    
+    var body: some View {
+        ZStack {
+            ForEach(0..<user.imageLinks.count) { i in
+                let link = self.user.imageLinks[i]
+                BarWebImage(url: link, radius: 0)
+                    .opacity(self.photoIndex == i ? 1 : 0)
+                    .clipped()
+            }
+            Rectangle()
+                .fill(LinearGradient(
+                        gradient: .init(colors: [Color.black.opacity(0), Color.black.opacity(0.7)]),
+                        startPoint: .init(x: 0, y: 0.7),
+                        endPoint: .init(x: 0, y: 1)))
+            // user name, age, profession if there is one
+            VStack {
+                ImageTickerView(n: user.imageLinks.count, photoIndex: photoIndex)
+                Spacer()
+                // rectangles for tapping
+                HStack {
+                    VStack {
+                        Color.clear
+                            .frame(maxHeight: .infinity)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if photoIndex > 0 {
+                            self.photoIndex -= 1
+                        }
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    }
+                    VStack {
+                        Color.clear
+                            .frame(maxHeight: .infinity)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if photoIndex < user.imageLinks.count - 1 {
+                            self.photoIndex += 1
+                        }
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    }
+                }
+            }
+            .padding()
+            HStack {
+                VStack (alignment: .leading) {
+                    Spacer()
+                    Text("\(user.firstName), \(userVM.getYearsDiffFromDate(date: user.dob))")
+                        .font(Font.custom("Avenir Next Demi Bold", size: 20))
+                        .foregroundColor(.white)
+                    if user.profession != "" {
+                        ProfessionView
+                    }
+                    NavigationLink(
+                        destination: UserView(invitable: false, isPreview: false, show: $showUser).environmentObject(self.likerVM),
+                        isActive: $showUser) {
+                            Text("Show More")
+                                .font(Font.custom("Avenir Next Demi Bold", size: 12))
+                                .foregroundColor(.white)
+                                .padding(.vertical, 2).padding(.horizontal, 10)
+                                .background(Color("Pink"))
+                                .clipShape(Capsule())
+                        }
+                    .simultaneousGesture(TapGesture().onEnded {
+                        self.userVM.setInspectedUser(user: user)
+                    })
+                }
+                .padding()
+                Spacer()
+            }
+        }
+        .frame(minWidth: 0)
+    }
+    
+    private var ProfessionView: some View {
+        let profession = self.user.profession
+        let company = self.user.company
+        return Text("\(profession)\(company != "" ? (", " + "\(company)") : "")")
+            .font(Font.custom("Avenir Next", size: 14))
+            .foregroundColor(.white)
+    }
+}
+
+struct LikerCommentCardView: View {
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
+    let user: User
+    let headingLabel: String
+    let quoteLabel: String
+    let comment: String
+    
+    var body: some View {
+        VStack (alignment: .leading, spacing: 3) {
+            if !headingLabel.isEmpty {
+                // like or comment
+                HStack {
+                    Image(comment.isEmpty ? "lightheart" : "lightcomment")
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                    Text(comment.isEmpty ? "\(user.firstName) liked your prompt!" : "\(comment)")
+                        .font(Font.custom("Avenir Next Italic", size: 16))
+                    Spacer()
+                }
+                .padding(20)
+                .background(Color.white.opacity(0.1))
+                .clipShape(ChatBubbleShape())
+                .opacity(user == likerVM.requestedMatcher ? 1 : 0)
+            }
+            VStack (alignment: .leading) {
+                // most basic version of invite
+                if comment.isEmpty && headingLabel.isEmpty {
+                    Text("\(user.firstName) likes you! Swipe right to chat")
+                        .font(Font.custom("Avenir Next Italic", size: 12))
+                        .foregroundColor(.white)
+                } else if headingLabel.isEmpty && !comment.isEmpty {
+                    // simple invite with a comment
+                    HStack (alignment: .bottom) {
+                        Image("quotes")
+                            .resizable()
+                            .frame(width: 35, height: 28)
+                        Spacer(minLength: 10)
+                        Text("\(comment)")
+                            .font(Font.custom("Avenir Next Bold Italic", size: 16))
+                            .tracking(1)
+                            .foregroundColor(.white)
+                    }
+                } else {
+                    Text("\(self.headingLabel.uppercased())")
+                        .font(Font.custom("Avenir Next Demi Bold", size: 12))
+                        .tracking(1)
+                        .foregroundColor(.white)
+                    HStack (alignment: .top) {
+                        Image("quotes")
+                            .resizable()
+                            .frame(width: 35, height: 28)
+                        Text("\(self.quoteLabel.uppercased())")
+                            .font(Font.custom("Avenir Next Bold", size: 16))
+                            .tracking(1.5)
+                            .foregroundColor(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(10)
+            .background(Color("Accent Blue"))
+            .clipShape(RoundedCorners(tl: 5, tr: 10, bl: 5, br: 5))
+            .frame(height: 60)
+        }
     }
 }
 
@@ -144,69 +278,7 @@ struct NoLikerView: View {
             .padding(20)
             .background(Color("Neutral"))
             .cornerRadius(10)
-            Spacer().frame(height: 40)
-            
-            Button {
-                likerVM.fetchData()
-                self.likerVM.refreshLikeCards()
-            } label: {
-                Text("Refresh")
-                    .font(Font.custom("Avenir Next Demi Bold", size: 14))
-                    .foregroundColor(Color("Midnight"))
-                    .padding(.vertical, 15).padding(.horizontal, 80)
-                    .background(Color.white)
-                    .clipShape(Capsule())
-            }
         }
-        .padding(.horizontal, 40)
-    }
-}
-
-struct LikesYouView_Previews: PreviewProvider {
-    static var previews: some View {
-        LikesYouView()
-    }
-}
-
-struct YesNoButtonView: View {
-    @State var likedUser: User
-    @Binding var showWaitView: Bool
-    @Binding var vOffset: CGSize
-    @Binding var pressDislike: Bool
-    
-    var body: some View {
-        HStack {
-            let restSize: CGFloat = 50
-            Button(action: {
-                self.pressDislike = true
-            }, label: {
-                ZStack {
-                    let growFrame = self.vOffset.height < 0 ? restSize : restSize + self.vOffset.height / 10
-                    Circle()
-                        .frame(width: growFrame, height: growFrame)
-                        .foregroundColor(Color("Accent Blue"))
-                    Image("xIcon")
-                        .resizable()
-                        .frame(width: 20, height: 20)
-                }
-                .opacity(self.vOffset.height <= 0 ? 0.2 : (Double(self.vOffset.height) + 80) / 400)
-            })
-            Spacer().frame(width: 20)
-            ZStack {
-                let growFrame = self.vOffset.height < 0 ? restSize + -self.vOffset.height / 10 : restSize
-                Circle()
-                    .frame(width: growFrame, height: growFrame)
-                    .foregroundColor(Color("Pink"))
-                Image("checkIcon")
-                    .resizable()
-                    .frame(width: 20, height: 20)
-            }
-            .opacity(self.vOffset.height >= 0 ? 0.2 : (Double(self.vOffset.height) - 80) / -400)
-        }
-        .animation(.spring())
-        .padding(15)
-        .background(Color("Neutral").opacity(abs(self.vOffset.height) == 0 ? 1 : 0))
-        .clipShape(Capsule())
-        .offset(y: 20)
+        .padding(.horizontal, 20)
     }
 }

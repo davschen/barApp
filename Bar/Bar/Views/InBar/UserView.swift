@@ -105,16 +105,19 @@ struct UserView: View {
             }
             VStack {
                 if showInviteView {
-                    SendInviteView(heading: $sendHeading, subheading: $sendSubHeading, inviteType: $inviteType, comment: $comment, showInviteView: $showInviteView)
+                    SendInviteView(heading: sendHeading, subheading: sendSubHeading, inviteType: $inviteType, comment: comment, showInviteView: $showInviteView, showUserView: $show)
                 }
             }.transition(.opacity).animation(.easeInOut)
         }
-        .navigationBarTitle("\(user.firstName), \(getYearsDiffFromDate(date: user.dob))", displayMode: .inline)
+        .navigationBarTitle("\(user.firstName), \(userVM.getYearsDiffFromDate(date: user.dob))", displayMode: .inline)
     }
 }
 
 struct PictureViews: View {
+    @EnvironmentObject var userVM: UserViewModel
+    
     let pvUser: User
+    
     @State var photoIndex = 0
     @State var showsButton: Bool
     @Binding var showUser: Bool
@@ -163,7 +166,7 @@ struct PictureViews: View {
                 }
                 HStack {
                     VStack (alignment: .leading) {
-                        Text("\(pvUser.firstName), \(getYearsDiffFromDate(date: pvUser.dob))")
+                        Text("\(pvUser.firstName), \(userVM.getYearsDiffFromDate(date: pvUser.dob))")
                             .font(Font.custom("Avenir Next Demi Bold", size: 20))
                             .foregroundColor(.white)
                         if pvUser.profession != "" {

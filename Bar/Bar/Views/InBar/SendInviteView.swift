@@ -11,11 +11,12 @@ import SwiftUI
 struct SendInviteView: View {
     @EnvironmentObject var likerVM: LikerViewModel
     @EnvironmentObject var userVM: UserViewModel
-    @Binding var heading: String
-    @Binding var subheading: String
+    @State var heading: String
+    @State var subheading: String
     @Binding var inviteType: InviteType
-    @Binding var comment: String
+    @State var comment: String
     @Binding var showInviteView: Bool
+    @Binding var showUserView: Bool
     
     var sendInviteTo: User {
         return self.likerVM.sendInviteToUser
@@ -60,28 +61,32 @@ struct SendInviteView: View {
                         }
                     }
                 }
-                ZStack (alignment: .leading) {
-                    if self.comment.isEmpty {
-                        Text(commentLine)
-                            .font(Font.custom("Avenir Next", size: 14))
-                            .foregroundColor(.gray)
-                            .animationsDisabled()
-                    }
-                    TextField("", text: $comment)
-                        .font(Font.custom("Avenir Next", size: 14))
-                        .foregroundColor(.black)
-                        .accentColor(.black)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 20)
-                .background(Color(.white))
-                .cornerRadius(10)
                 
+                if inviteType != .like {
+                    ZStack (alignment: .leading) {
+                        if self.comment.isEmpty {
+                            Text(commentLine)
+                                .font(Font.custom("Avenir Next", size: 14))
+                                .foregroundColor(.gray)
+                                .animationsDisabled()
+                        }
+                        TextField("", text: $comment)
+                            .font(Font.custom("Avenir Next", size: 14))
+                            .foregroundColor(.black)
+                            .accentColor(.black)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 20)
+                    .background(Color(.white))
+                    .cornerRadius(10)
+                }
                 // Send invite button
                 Button(action: {
                     self.likerVM.sendInvite(heading: self.heading, subheading: self.subheading, comment: self.comment)
                     self.comment = ""
                     self.showInviteView.toggle()
+                    self.showUserView.toggle()
+                    self.userVM.removeFromBar(id: sendInviteTo.id ?? "NOT-AN-ID")
                 }, label: {
                     Text("\(buttonLabel)")
                         .padding(.vertical, 15)
@@ -96,7 +101,7 @@ struct SendInviteView: View {
                     self.comment = ""
                 }, label: {
                     Text("Cancel")
-                        .padding(.horizontal, 100).padding(.vertical)
+                        .padding(.horizontal, 100).padding(.vertical, 5)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .font(Font.custom("Avenir Next Demi Bold", size: 12))
@@ -118,14 +123,17 @@ struct SendInviteView: View {
 struct InviteCardView: View {
     let bio: String
     let user: User
+    let bioLength = 130
+    
     var body: some View {
+        let shortBio = String(bio.prefix(bioLength))
         HStack (spacing: 20) {
             BarWebImage(url: user.profURL, radius: 5)
                 .frame(height: UIScreen.main.bounds.height / 6)
             Rectangle()
                 .frame(width: 1, height: 100)
                 .foregroundColor(.white)
-            Text("\(bio)")
+            Text("\(shortBio)\(isShortened(bio: bio, shortBio: shortBio) ? "..." : "")")
                 .font(Font.custom("Avenir Next", size: 12))
                 .foregroundColor(.white)
                 .fixedSize(horizontal: false, vertical: true)
@@ -134,6 +142,13 @@ struct InviteCardView: View {
         .padding(30)
         .background(Color("Navy"))
         .cornerRadius(10)
+    }
+    func isShortened(bio: String, shortBio: String) -> Bool {
+        if bio.count > shortBio.count {
+            return true
+        } else {
+            return false
+        }
     }
 }
 

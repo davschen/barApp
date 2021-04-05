@@ -12,6 +12,8 @@ import Firebase
 class CurrentUserViewModel: ObservableObject {
     @Published var currentUser = TempUserLib().emptyUser
     private var db = Firestore.firestore()
+    private var ref: DatabaseReference = Database.database().reference()
+    
     private var myUID: String {
         return Auth.auth().currentUser?.uid ?? "NOT-AN-ID"
     }
@@ -30,6 +32,7 @@ class CurrentUserViewModel: ObservableObject {
             if let currentUser = try? doc.data(as: User.self) {
                 DispatchQueue.main.async {
                     self.currentUser = currentUser
+                    self.updateRef()
                 }
             }
         }
@@ -37,6 +40,12 @@ class CurrentUserViewModel: ObservableObject {
     
     func updateDB() {
         let _ = try? db.collection("users").document(self.myUID).setData(from: self.currentUser)
+    }
+    
+    func updateRef() {
+        self.changeUserValueDB(key: "isOnline", value: true)
+        self.ref.child("users").child(myUID).setValue(["presence" : true])
+        self.ref.child("users").child(myUID).onDisconnectUpdateChildValues(["presence" : false])
     }
     
     func convertCustomArray(userPrompts: [String]) -> [String] {

@@ -24,6 +24,8 @@ class LikerViewModel: ObservableObject {
     @Published var sendInviteToUser: User = TempUserLib().emptyUser
     @Published var matcher: User = TempUserLib().emptyUser
     @Published var requestedMatcher: User = TempUserLib().emptyUser
+    @Published var invitedUserIsBusy = false
+    
     private var currentUser = Auth.auth().currentUser
     private var db = Firestore.firestore()
     
@@ -31,7 +33,7 @@ class LikerViewModel: ObservableObject {
         fetchData()
     }
     
-    // NEEDS UPDATING LATER - how about now hehehe
+    // NEEDS UPDATING LATER
     func fetchData() {
         guard let userID = currentUser?.uid else { return }
         let docRef = db.collection("users").document(userID)
@@ -46,11 +48,15 @@ class LikerViewModel: ObservableObject {
                 self.db.collection("users").document(doc.documentID).addSnapshotListener { (snap, error) in
                     if error != nil { return }
                     if let user = try? snap?.data(as: User.self) {
+                        let heading = doc.get("heading") as? String ?? ""
+                        let subheading = doc.get("subheading") as? String ?? ""
+                        let comment = doc.get("comment") as? String ?? ""
                         DispatchQueue.main.async {
                             var userVar = user
                             userVar.setID(id: doc.documentID)
                             if !self.likers.contains(userVar) {
                                 self.likers.append(userVar)
+                                self.likeCards.append(LikeCard(user: userVar, heading: heading, subHeading: subheading, comment: comment, id: self.likeCards.count))
                             }
                         }
                     }
@@ -73,7 +79,9 @@ class LikerViewModel: ObservableObject {
                     guard let doc = doc else { return }
                     if let matcher = try? doc.data(as: User.self) {
                         DispatchQueue.main.async {
-                            self.matcher = matcher
+                            var userVar = matcher
+                            userVar.setID(id: doc.documentID)
+                            self.matcher = userVar
                         }
                     }
                 }
@@ -85,34 +93,22 @@ class LikerViewModel: ObservableObject {
         self.sendInviteToUser = user
     }
     
-    func pop(idToRemove: String) {
+    func pop() {
+        let idToRemove = self.requestedMatcher.id ?? "NOT-AN-ID"
         guard let myUID = currentUser?.uid else { return }
         let docRef = db.collection("users").document(myUID)
+        print(idToRemove)
         docRef.collection("likers").document(idToRemove).delete()
-        self.likers.remove(at: 0)
-    }
-    
-    func removeMatcher(idToRemove: String) {
-        guard let myUID = currentUser?.uid else { return }
-        let docRef = db.collection("users").document(myUID)
-        self.matcher = TempUserLib().emptyUser
-        docRef.collection("matcher").document(idToRemove).delete()
-        docRef.setData(["matcherID" : ""], merge: true)
-    }
-    
-    func removeAllLikers() {
-        guard let myUID = currentUser?.uid else { return }
-        let docRef = self.db.collection("users").document(myUID).collection("likers")
-        docRef.addSnapshotListener { (snap, error) in
-            if error != nil {
-                print(error!.localizedDescription)
-                return
-            }
-            guard let data = snap?.documents else { return }
-            data.forEach { (doc) in
-                docRef.document(doc.documentID).delete()
-            }
+        if self.likers.count > 0 {
+            self.likers.removeFirst()
+            self.likeCards.removeFirst()
         }
+    }
+    
+    // swipe left
+    func dismissUser() {
+        self.pop()
+        self.updateRequestedMatcher()
     }
     
     // likeToID refers to the ID of the person the like is being sent to
@@ -140,25 +136,50 @@ class LikerViewModel: ObservableObject {
         ])
     }
     
-    func requestMatch() {
+    func removeAllLikers() {
         guard let myUID = currentUser?.uid else { return }
-        guard let id = self.requestedMatcher.id else { return }
-        let matcherDocRef = db.collection("users").document(id)
-        let myDocRef = db.collection("users").document(myUID)
-        
-        // set my matcherID to matchTo ID
-        myDocRef.getDocument { (snap, error) in
-            myDocRef.setData([
-                "matcherID" : id
-            ], merge: true)
+        let docRef = self.db.collection("users").document(myUID).collection("likers")
+        docRef.addSnapshotListener { (snap, error) in
+            if error != nil {
+                print(error!.localizedDescription)
+                return
+            }
+            guard let data = snap?.documents else { return }
+            data.forEach { (doc) in
+                docRef.document(doc.documentID).delete()
+            }
         }
-        
-        // set collection data
-        matcherDocRef.collection("matcher").document(myUID).setData([
-            "id" : myUID
-        ])
     }
     
+    /* NOTE: All code below deals with matching. If I were more responsible, I would have created
+     a new VM called matchVM, but I'm not, so I'm fitting it into likerVM
+     */
+    
+    func requestMatch() {
+        self.updateRequestedMatcher()
+        
+        guard let id = currentUser?.uid else { return }
+        let matcherDocRef = db.collection("users").document(requestedMatcher.id ?? "NOT-AN-ID")
+        matcherDocRef.addSnapshotListener { (doc, error) in
+            if error != nil {
+                print(error!.localizedDescription)
+                return
+            }
+            let invitedUserHasMatch = doc?.get("hasMatch") as? Bool ?? true
+            let invitedMatcherID = doc?.get("matcherID") as? String ?? ""
+            if !invitedUserHasMatch || invitedMatcherID == (self.currentUser?.uid ?? "NOT-AN-ID") {
+                // set my matcherID to matchTo ID
+                matcherDocRef.setData([
+                    "matcherID" : id,
+                    "hasMatch" : true
+                ], merge: true)
+            } else {
+                self.invitedUserIsBusy = true
+            }
+        }
+    }
+    
+    // called whenever the current user "changes their mind," so to speak, on their match before starting convo.
     func declineMatcher(id: String) {
         guard let userID = currentUser?.uid else { return }
         let matcherDocRef = db.collection("users").document(id)
@@ -167,6 +188,8 @@ class LikerViewModel: ObservableObject {
         // set matchTo matcherID value to my UID
         matcherDocRef.getDocument { (snap, error) in
             matcherDocRef.setData([
+                "hasMatch" : false,
+                "conversationID" : "",
                 "matcherID" : ""
             ], merge: true)
         }
@@ -174,21 +197,15 @@ class LikerViewModel: ObservableObject {
         // set my matcherID to matchTo ID
         myDocRef.getDocument { (snap, error) in
             myDocRef.setData([
+                "hasMatch" : false,
+                "conversationID" : "",
                 "matcherID" : ""
             ], merge: true)
         }
-        
-        // delete document in matcher
-        self.matcher = TempUserLib().emptyUser
-        matcherDocRef.collection("matcher").document(userID).delete()
-        myDocRef.collection("matcher").document(id).delete()
+        self.pop()
     }
     
-    func checkHasMatcher() -> Bool {
-        return self.matcher != TempUserLib().emptyUser
-    }
-    
-    func match(matchToID: String) {
+    func acceptMatch(matchToID: String) {
         // myUID = current user in-app's ID
         guard let myUID = currentUser?.uid else { return }
         
@@ -198,39 +215,27 @@ class LikerViewModel: ObservableObject {
         
         // add match to matcher
         matcherDocRef.getDocument { (snap, error) in
-            let numMatches = snap?.get("matches") as! Int
+            let numMatches = snap?.get("matches") as? Int ?? 0
             matcherDocRef.setData([
+                "hasMatch" : true,
+                "matcherID" : myUID,
                 "matches" : numMatches + 1
             ], merge: true)
         }
         
         // add match to me
         myDocRef.getDocument { (snap, error) in
-            let numMatches = snap?.get("matches") as! Int
+            let numMatches = snap?.get("matches") as? Int ?? 0
             myDocRef.setData([
                 "matches" : numMatches + 1
             ], merge: true)
         }
-        
-        matcherDocRef.collection("matcher").document(myUID).setData([
-            "id" : myUID
-        ])
-    }
-    
-    func refreshLikeCards() {
-        if self.likeCards.count > 0 {
-            self.requestedMatcher = likeCards[0].user
-        }
     }
     
     func updateRequestedMatcher() {
-        self.requestedMatcher = likeCards[0].user
-    }
-    
-    func dismissUser(counter: Int) {
-        guard let id = requestedMatcher.id else { return }
-        self.pop(idToRemove: id)
-        self.requestedMatcher = likeCards[counter < likeCards.count ? counter : 0].user
+        if likeCards.count > 0 {
+            self.requestedMatcher = likeCards[0].user
+        }
     }
     
     func generatePronouns(user: User) -> [String] {

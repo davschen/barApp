@@ -17,17 +17,15 @@ struct BarPreView: View {
     @EnvironmentObject var userVM: UserViewModel
     
     @Binding var show: Bool
-
+        
     var body: some View {
         ZStack {
             BGColor()
             VStack (spacing: 10) {
-                Spacer()
-                    .frame(height: UIScreen.main.bounds.height / 10)
                 HStack {
                     Text("BARS")
-                        .font(Font.custom("Avenir Next Bold", size: 30))
-                        .tracking(5)
+                        .font(Font.custom("Avenir Next Bold", size: 35))
+                        .tracking(7)
                         .foregroundColor(.white)
                         .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
                     Spacer()
@@ -40,6 +38,7 @@ struct BarPreView: View {
                 }
             }
         }
+        .navigationTitle("")
     }
 }
 
@@ -49,6 +48,8 @@ struct PageView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @EnvironmentObject var likerVM: LikerViewModel
     @EnvironmentObject var userVM: UserViewModel
+    
+    @State var presentInBarView = false
     
     let barArr: [Bar]
     let db = Firestore.firestore()
@@ -77,12 +78,12 @@ struct PageView: View {
                                 .offset(x: 0, y: 4)
                         }
                         VStack (alignment: .center) {
-                            NavigationLink(destination: InBarView()
+                            NavigationLink(destination: InBarView(presentInBarView: $presentInBarView)
                                             .environmentObject(self.barVM)
                                             .environmentObject(self.chatVM)
                                             .environmentObject(self.currentUserVM)
                                             .environmentObject(self.likerVM)
-                                            .environmentObject(self.userVM)) {
+                                            .environmentObject(self.userVM), isActive: $presentInBarView) {
                                 Text("Enter Bar")
                                     .padding(.vertical, 15)
                                     .frame(maxWidth: .infinity)
@@ -93,10 +94,8 @@ struct PageView: View {
                             }
                             .simultaneousGesture(TapGesture().onEnded {
                                 self.barVM.updateCurrentBar(bar: self.barArr[i])
-                                if let id = Auth.auth().currentUser?.uid {
-                                    db.collection("users").document(id).setData([
-                                        "currentBarID" : bar.id!
-                                    ], merge: true)
+                                if let barID = bar.id {
+                                    self.currentUserVM.changeUserValueDB(key: "currentBarID", value: barID)
                                 }
                             })
                         }

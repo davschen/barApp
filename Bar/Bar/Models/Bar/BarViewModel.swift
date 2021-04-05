@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import Firebase
 
 class BarViewModel: ObservableObject {
     @Published var bars = [Bar]()
@@ -21,14 +22,16 @@ class BarViewModel: ObservableObject {
     }
     
     func fetchData() {
-        db.collection("bars").addSnapshotListener { (querySnapshot, error) in
+        db.collection("bars").addSnapshotListener { (snap, error) in
             if error != nil {
                 print(error!.localizedDescription)
                 return
             }
-            guard let barData = querySnapshot?.documents else { return }
-            self.bars = barData.compactMap { (query) -> Bar? in
-                return try? query.data(as: Bar.self)
+            guard let data = snap?.documents else { return }
+            DispatchQueue.main.async {
+                self.bars = data.compactMap { (query) -> Bar? in
+                    return try? query.data(as: Bar.self)
+                }
             }
         }
     }
@@ -40,7 +43,7 @@ class BarViewModel: ObservableObject {
     func resetCurrentBar() {
         self.currentBar = EmptyBar().bar
     }
-    
+     
     func updateBarForPreView(bar: Bar) {
         self.selectedBarForPreView = bar
     }
@@ -54,8 +57,4 @@ class BarViewModel: ObservableObject {
         }
         return 0
     }
-}
-
-struct EmptyBar {
-    public var bar = Bar(id: "", name: "", description: "", imageLinkName: "", tags: [], cap: 0, occup: 0, city: "", state: "")
 }

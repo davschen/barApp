@@ -11,20 +11,28 @@ import Firebase
 import MobileCoreServices
 
 struct ChatTextView: View {
+    @EnvironmentObject var userVM: UserViewModel
+    
     @Binding var replyText: String
     @Binding var respondMessageID: String
     @Binding var respondToID: String
-    @Binding var responderName: String
     @Binding var lastMessageSenderID: String
+    @Binding var responderName: String
     @Binding var selectedMessageID: String
     @Binding var lastMessageID: String
+    
     @State var proxy: ScrollViewProxy
     @State var didReply = false
     @State var showChatTo = false
     @State var hOffset: CGFloat = .zero
     @State var messageData: Message
+    
     @ObservedObject var chatViewModel: ChatViewModel
     let chatTo: User
+    
+    var isFirstMessageFromUser: Bool {
+        return messageData.lastMessageSenderID != chatTo.id
+    }
     
     var body: some View {
         ZStack {
@@ -63,6 +71,9 @@ struct ChatTextView: View {
                                                 .padding(.top, 3)
                                         }
                                     }
+                                    .simultaneousGesture(TapGesture().onEnded{
+                                        userVM.setInspectedUser(user: chatTo)
+                                    })
                                 } else {
                                     // this is just the number of pixels that ends up matching perfectly with the gap made from the picture
                                     Spacer().frame(width: 38)
@@ -88,15 +99,20 @@ struct ChatTextView: View {
                                     }
                                 }
                                 HStack {
-                                    SystemText(text: messageData.text, fontstyle: .medium)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 7)
+                                    Text(messageData.text)
+                                        .font(Font.custom("Avenir Next", size: 16))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(isCurrentUser() ? .leading : .trailing, 3)
+                                        .padding(.vertical, 9)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 .background(isCurrentUser() ?
                                                 (selected() ? Color("Dark Accent") : Color("My Texts")) :
                                                 (selected() ? Color("Neutral") : Color("Light Muted")))
-                                .clipShape(isCurrentUser() ? sendShape : receieveShape)
+                                .clipShape(isCurrentUser() ?
+                                            RoundedCorners(tl: 20, tr: isFirstMessageFromUser ? 4 : 20, bl: 20, br: 4) :
+                                            RoundedCorners(tl: isFirstMessageFromUser ? 20 : 4, tr: 20, bl: 4, br: 20))
                                 .onTapGesture {
                                     if selected() {
                                         self.selectedMessageID = ""
@@ -170,9 +186,6 @@ struct ChatTextView: View {
     func respondingTo(senderID: String) -> String {
         return senderID == chatTo.id ? chatTo.firstName.uppercased() : "ME"
     }
-    
-    var receieveShape = RoundedCorners(tl: 3, tr: 10, bl: 3, br: 10)
-    var sendShape = RoundedCorners(tl: 10, tr: 3, bl: 10, br: 3)
 }
 
 struct replyButton: View {

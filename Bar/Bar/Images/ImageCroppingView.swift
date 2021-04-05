@@ -105,7 +105,7 @@ struct ViewFinderView:View{
     @Binding var finalMagnification:CGFloat
     
     @State var dotSize:CGFloat = 13
-    var dotColor = Color.init(white: 1).opacity(0.9)
+    var dotColor = Color("Pink")
     var surroundingColor = Color.black.opacity(0.45)
     
     var body: some View {
@@ -206,13 +206,12 @@ struct ViewFinderView:View{
                 .foregroundColor(Color.white.opacity(0.6))
                 .offset(x: activeOffset.width, y: activeOffset.height)
             
-            
             //UL corner icon
             Image(systemName: "arrow.up.left.and.arrow.down.right")
                 .font(.system(size: 12))
                 .background(Circle().frame(width: 20, height: 20).foregroundColor(dotColor))
                 .frame(width: dotSize, height: dotSize)
-                .foregroundColor(.black)
+                .foregroundColor(.white)
                 .offset(x: activeOffset.width - (activeMagnification*getDimension(w: imageWidth, h: imageHeight)/2), y: activeOffset.height - (activeMagnification*getDimension(w: imageWidth, h: imageHeight)/2))
                 .padding(25)
                 .gesture(

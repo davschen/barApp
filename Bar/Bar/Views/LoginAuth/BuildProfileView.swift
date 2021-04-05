@@ -152,7 +152,7 @@ struct BuildProfileView: View {
                             })
                             .opacity(hasCompletedFields() ? 1 : 0.2)
                         })
-                    RegistrationPaginationView(index: 2)
+                    RegistrationPaginationView(numSteps: 5, index: 2)
                 }
             }
             .alert(isPresented: $alert) {

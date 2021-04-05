@@ -29,9 +29,15 @@ class UserViewModel: ObservableObject {
             }
             let barIDFromData = snap?.get("currentBarID") as? String ?? "notAnID"
             let genderPreferences = self.getGenderPreferences(genderPreference: snap?.get("genderPreference") as? String ?? "")
+            let gender = snap?.get("gender") as? String ?? ""
             let seenBefore = snap?.get("seenBefore") as? [String] ?? []
+            let minAge = snap?.get("minAge") as? Int ?? 18
+            let maxAge = snap?.get("maxAge") as? Int ?? 80
+            let minDOB = self.getDateFromInt(int: minAge + 18)
+            let maxDOB = self.getDateFromInt(int: maxAge + 18)
             self.db.collection("users")
                 .whereField("currentBarID", isEqualTo: barIDFromData)
+                .whereField("currentBarID", isNotEqualTo: "")
                 .whereField("gender", in: genderPreferences)
                 .addSnapshotListener { (snap, error) in
                     if error != nil {
@@ -45,8 +51,17 @@ class UserViewModel: ObservableObject {
                             DispatchQueue.main.async {
                                 var userVar = user
                                 userVar.setID(id: doc.documentID)
-                                if doc.documentID != userID && !self.users.contains(userVar) && !seenBefore.contains(doc.documentID) {
+                                if doc.documentID != userID
+                                    && !self.users.contains(userVar)
+                                    && !seenBefore.contains(doc.documentID)
+                                    && user.dob <= minDOB
+                                    && user.dob >= maxDOB
+                                    && user.genderPreference == self.getGender(gender: gender)
+                                    && self.users.count < 6 {
                                     self.users.append(userVar)
+                                }
+                                if self.users.count == 6 {
+                                    return
                                 }
                             }
                         }
@@ -60,11 +75,36 @@ class UserViewModel: ObservableObject {
     }
     
     func removeFromBar(id: String) {
-        
+        self.users.remove(at: getIndexFromID(id: id))
+    }
+    
+    func getIndexFromID(id: String) -> Int {
+        for i in 0..<self.users.count {
+            let user = self.users[i]
+            guard let userID = user.id else { return 0 }
+            if userID == id {
+                return i
+            }
+        }
+        return 0
     }
     
     func clearUsers() {
         self.users.removeAll()
+    }
+    
+    func getYearsDiffFromDate(date: Date) -> Int {
+        let difference = Calendar.current.dateComponents([.year], from: date, to: Date())
+        return Int(difference.year!)
+    }
+    
+    func getDateFromInt(int: Int) -> Date {
+        let currentDate = Date()
+        var dateComponent = DateComponents()
+        dateComponent.year = -(int)
+        
+        let differenceFromCurrent = Calendar.current.date(byAdding: dateComponent, to: currentDate)
+        return differenceFromCurrent ?? Date()
     }
     
     func cardsFormatter(user: User) -> (headings: [String], subheadings: [String], count: Int) {
@@ -111,6 +151,14 @@ class UserViewModel: ObservableObject {
             return ["Female"]
         } else {
             return ["Male", "Female"]
+        }
+    }
+    
+    private func getGender(gender: String) -> String {
+        switch gender {
+        case "Male": return "Men"
+        case "Female": return "Women"
+        default: return "Both"
         }
     }
 }

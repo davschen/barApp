@@ -10,7 +10,8 @@ import SwiftUI
 
 struct ChatView: View {
     @EnvironmentObject var chatVM: ChatViewModel
-    @EnvironmentObject var likerViewModel: LikerViewModel
+    @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var userVM: UserViewModel
     
     @Binding var showChat: Bool
     
@@ -25,7 +26,11 @@ struct ChatView: View {
     
     var body: some View {
         ZStack {
-            Color("Neutral").edgesIgnoringSafeArea(.all)
+            LinearGradient(
+                gradient: .init(colors: [Color("Neutral"), Color("Midnight")]),
+                startPoint: .init(x: 0, y: 0),
+                endPoint: .init(x: 0, y: 0.5))
+                .edgesIgnoringSafeArea(.all)
             ScrollViewReader { proxy in
                 VStack (spacing: 0) {
                     VStack {
@@ -35,6 +40,9 @@ struct ChatView: View {
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                             }
+                            .simultaneousGesture(TapGesture().onEnded{
+                                userVM.setInspectedUser(user: chatVM.chatToUser)
+                            })
                             VStack (alignment: .leading, spacing: -3) {
                                 SystemText(text: self.chatVM.chatToUser.firstName, fontstyle: .largeDemiBold)
                                 Text(countdownStringHandler())
@@ -60,11 +68,11 @@ struct ChatView: View {
                     ScrollView(.vertical, showsIndicators: true, content: {
                         VStack (spacing: 3) {
                             ForEach(chatVM.messages) { message in
-                                ChatTextView(replyText: $chatVM.response, respondMessageID: $chatVM.respondMessageID, respondToID: $chatVM.respondToID, responderName: $responderName, lastMessageSenderID: $chatVM.lastMessageSenderID, selectedMessageID: $selectedMessageID, lastMessageID: $chatVM.lastMessageID, proxy: proxy, messageData: message, chatViewModel: self.chatVM, chatTo: self.chatVM.chatToUser)
+                                ChatTextView(replyText: $chatVM.response, respondMessageID: $chatVM.respondMessageID, respondToID: $chatVM.respondToID, lastMessageSenderID: $chatVM.lastMessageSenderID, responderName: $responderName, selectedMessageID: $selectedMessageID, lastMessageID: $chatVM.lastMessageID, proxy: proxy, messageData: message, chatViewModel: self.chatVM, chatTo: self.chatVM.chatToUser)
                                     .onAppear {
                                         chatVM.setSenderID(id: message.senderID)
                                         chatVM.setLastMessageID(id: message.id ?? "")
-                                    } 
+                                    }
                             }
                             .onAppear {
                                 guard let lastMessage = chatVM.messages.last else { return }
@@ -86,7 +94,7 @@ struct ChatView: View {
                                     Button(action: {
                                         reject()
                                     }, label: {
-                                        SystemText(text: "Leave Conversation", fontstyle: .regular)
+                                        SystemText(text: "Dip", fontstyle: .regular)
                                             .padding(.vertical, 7)
                                             .padding(.horizontal, 15)
                                             .background(Capsule().stroke(Color.white, lineWidth: 1))
@@ -122,7 +130,7 @@ struct ChatView: View {
                         }
                         // Bottom bar with Show More Button, TextField, Send Message Button
                         HStack (alignment: .bottom) {
-                            // Show More button
+                            // Show More button (plus that turns into minus)
                             Button(action: {
                                 self.isShowingMore.toggle()
                                 guard let lastMessage = chatVM.messages.last else { return }
@@ -130,15 +138,7 @@ struct ChatView: View {
                                     proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                 }
                             }, label: {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .frame(width: 30, height: 30)
-                                        .foregroundColor(Color("Pink"))
-                                    Image(systemName: "chevron.up")
-                                        .foregroundColor(.white)
-                                        .rotationEffect(.degrees(self.isShowingMore ? 180 : 0))
-                                }
-                                .animation(.easeInOut)
+                                ShowingMoreView(isShowingMore: $isShowingMore)
                             })
                             .padding(.vertical, 10)
                             // VStack containing TextField and respondTo message, if there is one
@@ -160,29 +160,35 @@ struct ChatView: View {
                                 .padding(hasResponse() ? 15 : 0)
                                 .background(Color("Light Muted"))
                                 .opacity(hasResponse() ? 1 : 0)
-                                .clipShape(RoundedCorners(tl: 5, tr: 5))
+                                .clipShape(RoundedCorners(tl: 20, tr: 20, bl: 4, br: 20))
                                 .frame(height: hasResponse() ? 50 : 0)
                                 // TextField
                                 HStack (alignment: .bottom, spacing: 0) {
                                     DynamicTextFieldChatView(chatText: $chatVM.text)
+                                        .simultaneousGesture(TapGesture().onEnded{
+                                            guard let lastMessage = chatVM.messages.last else { return }
+                                            withAnimation {
+                                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                            }
+                                        })
                                     Button {
                                         if !self.chatVM.text.isEmpty {
                                             self.chatVM.writeMessage()
                                         }
                                     } label: {
                                         Image(systemName: "paperplane.fill")
-                                            .padding()
+                                            .padding(8)
                                             .background(Color("Pink"))
                                             .clipShape(Circle())
                                             .font(.system(size: 15))
                                             .foregroundColor(.white)
-                                            .frame(width: 30, height: 30)
                                             .opacity(self.chatVM.text.isEmpty ? 0.4 : 1)
                                     }
                                 }
                                 .padding(3)
-                                .background(Color("Midnight"))
-                                .cornerRadius(5)
+                                .padding(.bottom, 1)
+                                .background(Color("Neutral"))
+                                .cornerRadius(20)
                             }
                         }
                         .gesture(DragGesture().onChanged({ (gesture) in
@@ -223,8 +229,7 @@ struct ChatView: View {
     }
     
     func reject() {
-        self.chatVM.deleteMessages()
-        self.likerViewModel.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
+        self.likerVM.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
         self.showChat.toggle()
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
@@ -264,8 +269,8 @@ struct DynamicTextFieldChatView: View {
         MultilineTextField("Write a Message", text: $chatText, onCommit: {
                     })
         .accentColor(.white)
-        .padding(.horizontal, 10).padding(.vertical, 5)
-        .background(Color("Midnight"))
+        .padding(.horizontal, 10)
+        .background(Color("Neutral"))
         .animationsDisabled()
     }
 }
@@ -300,8 +305,7 @@ struct PullUpMenuView: View {
                     HStack {
                         VStack {
                             Button {
-                                self.chatVM.deleteMessages()
-                                self.likerVM.pop(idToRemove: self.chatTo.id!)
+                                self.likerVM.declineMatcher(id: self.chatVM.chatToUser.id ?? "")
                                 self.showChat.toggle()
                             } label: {
                                 Image(systemName: "xmark")
@@ -395,5 +399,24 @@ struct PullUpMenuView: View {
                         }))
         }
         .edgesIgnoringSafeArea(.all)
+    }
+}
+
+struct ShowingMoreView: View {
+    @Binding var isShowingMore: Bool
+    
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .foregroundColor(.white)
+                .frame(width: 10, height: 2)
+            Rectangle()
+                .foregroundColor(.white)
+                .frame(width: 2, height: 10)
+                .rotationEffect(Angle(degrees: isShowingMore ? 90 : 0))
+        }
+        .padding(5)
+        .background(Color("Pink"))
+        .clipShape(Circle())
     }
 }

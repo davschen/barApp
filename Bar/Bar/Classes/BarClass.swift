@@ -24,3 +24,7 @@ struct Bar: Codable, Identifiable {
         case id, name, description, imageLinkName, tags, cap, occup, city, state
     }
 }
+
+struct EmptyBar {
+    public var bar = Bar(id: "", name: "", description: "", imageLinkName: "", tags: [], cap: 0, occup: 0, city: "", state: "")
+}

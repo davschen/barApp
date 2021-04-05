@@ -28,15 +28,17 @@ struct BarView: View {
         NavigationView {
             ZStack {
                 BGColor()
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 5) {
                     NavigationLink(destination: ProfileView(isShowingProfile: $isShowingProfile).environmentObject(self.currentUserVM), isActive: $isShowingProfile) {
                         EditProfileView()
                     }
-                    SystemTextTracking(text: "BARS", fontstyle: .jumboBold)
-                        .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
-                    SystemText(text: "Last Call in \(25 - hour) hours, \(60 - minutes) minutes", fontstyle: .mediumBold)
+                    VStack (alignment: .leading, spacing: 0) {
+                        SystemTextTracking(text: "BARS", fontstyle: .jumboBold)
+                            .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
+                        SystemText(text: "Last Call in \(25 - hour) hours, \(60 - minutes) minutes", fontstyle: .mediumBold)
+                    }
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack (spacing: 5) {
+                        HStack {
                             ForEach(self.barVM.bars) { bar in
                                 if bar.name != self.barVM.featuredBar {
                                     SmallBarView(bar: bar)
@@ -45,8 +47,8 @@ struct BarView: View {
                         }
                     }
                     HStack {
-                        ForEach(self.barVM.bars) { bar in
-                            if bar.name == self.barVM.featuredBar {
+                        ForEach (self.barVM.bars) { bar in
+                            if bar.name == barVM.featuredBar {
                                 BigBarView(bar: bar)
                                     .frame(height: UIScreen.main.bounds.height * 0.5)
                             }
@@ -80,6 +82,23 @@ struct SmallBarView: View {
     let bar: Bar
     
     var body: some View {
+        Button {
+            showDetail.toggle()
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                BarWebImage(url: self.bar.imageLinkName, radius: 10)
+                SystemText(text: self.bar.name, fontstyle: .regularBold)
+                CapacityView(capacity: Double(self.bar.occup) / Double(self.bar.cap))
+            }
+            .padding(10)
+            .background(Color("Navy"))
+            .cornerRadius(10.0)
+            .padding(.trailing, 5)
+            .onTapGesture {
+                self.barVM.selectedBarForPreView = self.bar
+                self.showDetail.toggle()
+            }
+        }
         NavigationLink(destination: BarPreView(show: $showDetail)
                         .environmentObject(self.barVM)
                         .environmentObject(self.chatVM)
@@ -87,18 +106,6 @@ struct SmallBarView: View {
                         .environmentObject(self.likerVM)
                         .environmentObject(self.userVM), isActive: $showDetail) {
         }.hidden()
-        VStack(alignment: .leading, spacing: 10) {
-            BarWebImage(url: self.bar.imageLinkName, radius: 10)
-            SystemText(text: self.bar.name, fontstyle: .regularBold)
-            CapacityView(capacity: Double(self.bar.occup) / Double(self.bar.cap))
-        }
-        .padding(10)
-        .background(Color("Navy"))
-        .cornerRadius(10.0)
-        .onTapGesture {
-            self.barVM.selectedBarForPreView = self.bar 
-            self.showDetail.toggle()
-        }
     }
 }
 
@@ -117,7 +124,8 @@ struct CapacityView: View {
                         .cornerRadius(.infinity)
                         .frame(width: CGFloat(Double(self.capacity) * Double(geometry.size.width)), height: 4.0)
                 }
-                SystemText(text: "\(Int(self.capacity * 100))% full", fontstyle: .small)
+                let fullPercent: Int = self.capacity > 0 ? Int(self.capacity * 100) : 0
+                SystemText(text: "\(fullPercent)% full", fontstyle: .small)
             }
         }
         .frame(height: 30)
@@ -135,44 +143,42 @@ struct BigBarView: View {
     var db = Firestore.firestore()
     
     var body: some View {
-        VStack(alignment: .leading) {
-            SystemTextTracking(text: "BAR OF THE NIGHT", fontstyle: .largeBold)
-                .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
-            BarWebImage(url: bar.imageLinkName, radius: 10)
-            SystemText(text: bar.name, fontstyle: .largeBold)
-            TagView(labels: bar.tags)
-            HStack (alignment: .top) {
-                HStack {
-                    Image("Location Icon")
-                        .resizable()
-                        .frame(width: 12, height: 15)
-                    SystemText(text: "\(bar.city), \(bar.state)", fontstyle: .regular)
-                }
-                Spacer()
-                CapacityView(capacity: Double(bar.occup) / Double(bar.cap))
-                    .frame(width: UIScreen.main.bounds.size.width / 3)
-                    .offset(x: 0, y: 4)
+        Button {
+            self.showBar.toggle()
+            self.barVM.updateCurrentBar(bar: self.bar)
+            if let barID = bar.id {
+                self.currentUserVM.changeUserValueDB(key: "currentBarID", value: barID)
             }
-            Button(action: {
-                self.showBar = true
-                self.barVM.updateCurrentBar(bar: self.bar)
-                if let id = Auth.auth().currentUser?.uid {
-                    db.collection("users").document(id).setData([
-                        "currentBarID" : bar.id!
-                    ], merge: true)
+        } label: {
+            VStack(alignment: .leading) {
+                SystemTextTracking(text: "BAR OF THE NIGHT", fontstyle: .largeBold)
+                    .shadow(color: Color("Pink"), radius: 0, x: -1, y: -2)
+                BarWebImage(url: bar.imageLinkName, radius: 10)
+                SystemText(text: bar.name, fontstyle: .largeBold)
+                TagView(labels: bar.tags)
+                HStack (alignment: .top) {
+                    HStack {
+                        Image("Location Icon")
+                            .resizable()
+                            .frame(width: 12, height: 15)
+                        SystemText(text: "\(bar.city), \(bar.state)", fontstyle: .regular)
+                    }
+                    Spacer()
+                    CapacityView(capacity: Double(bar.occup) / Double(bar.cap))
+                        .frame(width: UIScreen.main.bounds.size.width / 3)
+                        .offset(x: 0, y: 4)
                 }
-            }, label: {
                 StandardButtonView(text: "Enter Bar")
                     .padding()
-            })
-            NavigationLink(destination: InBarView()
-                            .environmentObject(self.currentUserVM)
-                            .environmentObject(self.likerVM), isActive: $showBar) {
-            }.hidden()
+                NavigationLink(destination: InBarView(presentInBarView: $showBar)
+                                .environmentObject(self.currentUserVM)
+                                .environmentObject(self.likerVM), isActive: $showBar) {
+                }.hidden()
+            }
+            .padding()
+            .background(Color("Navy"))
+            .cornerRadius(10.0)
         }
-        .padding()
-        .background(Color("Navy"))
-        .cornerRadius(10.0)
     }
 }
 
@@ -194,7 +200,8 @@ struct EditProfileView: View {
                 .font(Font.custom("Avenir Next Bold", size: 16))
                 .foregroundColor(.white)
             Spacer()
-            Image("settings icon")
+            SettingsIconView()
+                .frame(width: 30, height: 30)
         }
         .frame(height: self.height)
         .padding(.horizontal)

@@ -23,8 +23,10 @@ struct InBarView: View {
     @State var subheading = ""
     @State var comment = ""
     @State var presentAlert = false
-    @State var barHopActive = false
     @State var showMatchView = false
+    @State var showUserView = false
+    
+    @Binding var presentInBarView: Bool
     
     var body: some View {
         let date = Date()
@@ -49,14 +51,11 @@ struct InBarView: View {
                     Button(action: {
                         self.presentAlert.toggle()
                     }, label: {
-                        StandardButtonView(text: "Bar Hop")
+                        StandardButtonView(text: "Dip")
                             .frame(width: UIScreen.main.bounds.width / 5)
                     })
-                    NavigationLink(destination: BarView(), isActive: $barHopActive){
-                        
-                    }.hidden()
                 }
-                NavigationLink(destination: LikesYouView().environmentObject(self.likerVM), isActive: $showLikesYou) {
+                NavigationLink(destination: LikesYouView(), isActive: $showLikesYou) {
                     HStack {
                         Text("SEE WHO LIKES YOU")
                             .font(Font.custom("Avenir Next Demi Bold", size: 14))
@@ -111,44 +110,42 @@ struct InBarView: View {
                                 VStack {
                                     HStack {
                                         Spacer()
-                                        HStack {
-                                            Text("Next")
-                                                .foregroundColor(Color("Midnight"))
-                                                .font(Font.custom("Avenir Next Bold", size: 12))
-                                                .padding(.vertical)
-                                            Image(systemName: "chevron.right")
-                                                .foregroundColor(.black)
-                                        }
-                                        .padding(.horizontal, 30)
-                                        .background(Color.white)
-                                        .clipShape(Capsule())
-                                        .padding(.horizontal)
-                                        .onTapGesture {
+                                        Button {
                                             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                        } label: {
+                                            HStack {
+                                                Text("Next")
+                                                    .foregroundColor(Color("Midnight"))
+                                                    .font(Font.custom("Avenir Next Bold", size: 12))
+                                                    .padding(.vertical)
+                                                Image(systemName: "chevron.right")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.black)
+                                            }
+                                            .padding(.horizontal, 30)
+                                            .background(Color.white)
+                                            .clipShape(Capsule())
+                                            .padding([.horizontal, .bottom])
                                         }
                                     }
                                 }
                             }
+                            .padding(5)
                         }
                     }
                 }
-                .background(Color("Navy"))
+                .background(Color.white.opacity(0.1))
                 .cornerRadius(10)
                 Spacer()
             }
             .padding(20)
             // show invite overlay view
-            if self.showInvite {
-                SendInviteView(heading: $heading, subheading: $subheading, inviteType: $inviteType, comment: $comment, showInviteView: $showInvite)
-                    .transition(.opacity).animation(.easeInOut)
-            }
-            // if they receive a matcher, show the matchview
-            VStack {
-                if self.likerVM.matcher != TempUserLib().emptyUser {
-                    Text("").onAppear { self.showMatchView.toggle() }
+            ZStack {
+                if self.showInvite {
+                    SendInviteView(heading: heading, subheading: subheading, inviteType: $inviteType, comment: comment, showInviteView: $showInvite, showUserView: $showUserView)
                 }
-                if showMatchView {
-                    MatchView(showMatchView: $showMatchView)
+                if self.currentUserVM.currentUser.hasMatch {
+                    MatchView(showMatchView: $currentUserVM.currentUser.hasMatch)
                         .environmentObject(self.chatVM)
                         .environmentObject(self.currentUserVM)
                         .environmentObject(self.likerVM)
@@ -162,7 +159,7 @@ struct InBarView: View {
                   secondaryButton: .default(Text("Yes, I want to leave"), action: {
                     self.currentUserVM.changeUserValueDB(key: "currentBarID", value: "")
                     self.userVM.clearUsers()
-                    self.barHopActive = true
+                    self.presentInBarView.toggle()
                   }))
         }
         .accentColor(.white)
@@ -212,9 +209,9 @@ struct ProfilePreView: View {
                             gradient: .init(colors: [Color.black.opacity(0), Color.black.opacity(0.7)]),
                             startPoint: .init(x: 0, y: 0.7),
                             endPoint: .init(x: 0, y: 1)))
-                HStack {
-                    Text("\(user.firstName), \(getYearsDiffFromDate(date: user.dob))")
-                        .font(Font.custom("Avenir Next Medium", size: 16))
+                HStack (alignment: .bottom) {
+                    Text("\(user.firstName), \(userVM.getYearsDiffFromDate(date: user.dob))")
+                        .font(Font.custom("Avenir Next Bold", size: 16))
                         .foregroundColor(.white)
                         .frame(alignment: .leading)
                     Spacer()
@@ -223,23 +220,23 @@ struct ProfilePreView: View {
                         self.likerVM.setInvitedUser(user: self.user)
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     }, label: {
-                        Image("like icon")
-                            .resizable()
-                            .frame(width: 30, height: 30)
+                        Image(systemName: "heart.circle")
+                            .font(.title3)
+                            .foregroundColor(.white)
+                            .padding(3)
+                            .background(Color("Pink"))
+                            .clipShape(Circle())
                     })
                 }
                 .padding(10)
             }
             .cornerRadius(10)
             .frame(height: height)
+            .padding(2)
         }
         .simultaneousGesture(TapGesture().onEnded {
-            self.userVM.setInspectedUser(user: user)
+            self.userVM.setInspectedUser(user: self.user)
+            self.likerVM.setInvitedUser(user: self.user)
         })
     }
-}
-
-public func getYearsDiffFromDate(date: Date) -> Int {
-    let difference = Calendar.current.dateComponents([.year], from: date, to: Date())
-    return Int(difference.year!)
 }

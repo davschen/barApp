@@ -151,7 +151,10 @@ struct CustomizeProfileView: View {
                     "customPrompts" : cleanPrompts(),
                     "customResponses" : cleanResponses(),
                     "gradYear" : self.education.isEmpty ? 0 : getGradClass(year: gradYear),
-                    "currentBarID" : ""
+                    "currentBarID" : "",
+                    "hasMatch" : false,
+                    "isOnline" : false,
+                    "conversationID" : ""
                 ], merge: true)
             }
         }

@@ -11,11 +11,19 @@ import SwiftUI
 struct WaitingForMatchView: View {
     @EnvironmentObject var chatVM: ChatViewModel
     @EnvironmentObject var likerVM: LikerViewModel
+    @EnvironmentObject var currentUserVM: CurrentUserViewModel
     
     @Binding var showWaitView: Bool
     
     @State var showChat = false
     @State var mainText = "Waiting For A Confirmation..."
+    @State var timeRemaining = 10
+    
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
+    var allowsBack: Bool {
+        return timeRemaining <= 0
+    }
     
     var body: some View {
         ZStack {
@@ -29,7 +37,7 @@ struct WaitingForMatchView: View {
                         .clipShape(Circle())
                     SystemText(text: self.mainText, fontstyle: .headerBold)
                     Spacer().frame(height: 15)
-                    SystemText(text: "Waiting for \(matcher.firstName) to confirm your match. After they confirm, you will have 20 minutes to share your contact information with them", fontstyle: .regular)
+                    SystemText(text: "Waiting for \(matcher.firstName) to confirm your match. After \(likerVM.generatePronouns(user: matcher)[0]) confirms, you will have 20 minutes to share your contact information with \(likerVM.generatePronouns(user: matcher)[1])", fontstyle: .regular)
                 }
                 .padding(20)
                 .background(Color("Neutral"))
@@ -37,15 +45,19 @@ struct WaitingForMatchView: View {
                 Spacer().frame(height: 40)
                 
                 Button {
-                    self.showWaitView.toggle()
+                    if allowsBack {
+                        self.showWaitView.toggle()
+                        self.likerVM.declineMatcher(id: matcher.id ?? "NOT-AN-ID")
+                    }
                 } label: {
-                    Text("Back")
+                    // e.g. Back (10) if timeRemaining <= 0, else Back
+                    Text("Back\(!allowsBack ? "\( " (\(timeRemaining))")" : "")")
                         .font(Font.custom("Avenir Next Demi Bold", size: 14))
                         .foregroundColor(Color("Midnight"))
                         .padding(.vertical, 15).padding(.horizontal, 80)
                         .background(Color.white)
                         .clipShape(Capsule())
-                        .opacity(0.4)
+                        .opacity(allowsBack ? 1 : 0.4)
                 }
             }
             .padding(.horizontal, 40)
@@ -53,5 +65,11 @@ struct WaitingForMatchView: View {
         .edgesIgnoringSafeArea(.all)
         .navigationBarHidden(true)
         .navigationBarTitle("")
+        .onReceive(timer) { time in
+            self.timeRemaining -= 1
+        }
+        NavigationLink(destination: ChatView(showChat: $currentUserVM.currentUser.hasMatch), isActive: $currentUserVM.currentUser.hasMatch) {
+            
+        }.hidden()
     }
 }

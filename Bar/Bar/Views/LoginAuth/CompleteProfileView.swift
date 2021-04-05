@@ -115,7 +115,7 @@ struct CompleteProfileView: View {
                                 .opacity(0.4)
                         }
                     }
-                    RegistrationPaginationView(index: 3)
+                    RegistrationPaginationView(numSteps: 5, index: 3)
                 }
             }
             .padding(.horizontal)
@@ -180,9 +180,9 @@ struct AgeRangePicker: View {
                 SystemText(text: "Between", fontstyle: .medium)
                 HStack (spacing: 3) {
                     SystemText(text: String(minAge + 18), fontstyle: .mediumDemiBold)
-                    Image(systemName: "arrowtriangle.down.fill")
+                    Image(systemName: "chevron.down")
                         .resizable()
-                        .frame(width: 5, height: 5)
+                        .frame(width: 8, height: 5)
                         .foregroundColor(.white)
                 }
                 .padding(5)
@@ -202,9 +202,9 @@ struct AgeRangePicker: View {
                 SystemText(text: "and", fontstyle: .medium)
                 HStack (spacing: 3) {
                     SystemText(text: String(maxAge + 18), fontstyle: .mediumDemiBold)
-                    Image(systemName: "arrowtriangle.down.fill")
+                    Image(systemName: "chevron.down")
                         .resizable()
-                        .frame(width: 5, height: 5)
+                        .frame(width: 8, height: 5)
                         .foregroundColor(.white)
                 }
                 .padding(5)
@@ -215,19 +215,20 @@ struct AgeRangePicker: View {
                     if minAgeTapped {
                         self.minAgeTapped.toggle()
                     }
-                    if minAge > maxAge {
-                        let tempMax = maxAge
-                        maxAge = minAge
-                        minAge = tempMax
-                    }
                 }
                 Spacer()
             }
             if minAgeTapped || maxAgeTapped {
                 Picker(selection: minAgeTapped ? $minAge : $maxAge, label: Text(""), content: {
-                    ForEach(18..<70 + 1) { i in
+                    ForEach(18..<71) { i in
                         Text(String(i))
                     }
+                })
+                .onChange(of: minAge, perform: { (value) in
+                    swapIfNeeded()
+                })
+                .onChange(of: maxAge, perform: { (value) in
+                    swapIfNeeded()
                 })
                 .colorScheme(.dark)
             }
@@ -235,6 +236,14 @@ struct AgeRangePicker: View {
         .padding(10)
         .background(Color("Neutral"))
         .cornerRadius(5)
+    }
+    
+    func swapIfNeeded() {
+        if minAge > maxAge {
+            let tempMax = maxAge
+            maxAge = minAge
+            minAge = tempMax
+        }
     }
 }
 

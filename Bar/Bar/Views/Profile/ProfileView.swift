@@ -44,29 +44,48 @@ struct ProfileView: View {
             self.profileViewModel.setProfPicURL(urlString: currentUserVM.currentUser.profURL)
         }
         .onDisappear {
-            DispatchQueue.main.async {
-                self.currentUserVM.updateDB()
-            }
+            self.currentUserVM.updateDB()
         }
     }
 }
 
 struct CloutView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
+    @EnvironmentObject var userVM: UserViewModel
+    
+    @State var showPreview = false
     
     var body: some View {
-        HStack {
-            IconLabelView(number: currentUserVM.currentUser.likes, iconName: "smallHeart", subheading: "Likes")
-            Spacer()
-            IconLabelView(number: currentUserVM.currentUser.matches, iconName: "smallFlame", subheading: "Matches")
-            Spacer()
-            IconLabelView(number: currentUserVM.currentUser.contacts, iconName: "smallContact", subheading: "Contacts")
+        VStack {
+            HStack {
+                IconLabelView(number: currentUserVM.currentUser.likes, iconName: "heart.fill", subheading: "Likes", isSystem: true)
+                Spacer()
+                IconLabelView(number: currentUserVM.currentUser.matches, iconName: "flame.fill", subheading: "Matches", isSystem: true)
+                Spacer()
+                IconLabelView(number: currentUserVM.currentUser.contacts, iconName: "smallContact", subheading: "Contacts", isSystem: false)
+            }
+            .padding(.vertical, 20)
+            .padding(.horizontal, 40)
+            .frame(maxWidth: .infinity)
+            .background(Color("Neutral"))
+            .cornerRadius(10)
+            
+            NavigationLink(
+                destination: UserView(invitable: false, isPreview: true, show: $showPreview),
+                label: {
+                    HStack {
+                        SystemText(text: "Preview Your Profile", fontstyle: .medium)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .padding()
+                    .background(Color("Neutral"))
+                    .cornerRadius(5)
+                })
+                .simultaneousGesture(TapGesture().onEnded {
+                    self.userVM.setInspectedUser(user: currentUserVM.currentUser)
+                })
         }
-        .padding(.vertical, 20)
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity)
-        .background(Color("Neutral"))
-        .cornerRadius(10)
     }
 }
 
@@ -74,14 +93,19 @@ struct IconLabelView: View {
     let number: Int
     let iconName: String
     let subheading: String
+    let isSystem: Bool
     
     var body: some View {
         VStack (spacing: 0) {
             HStack {
                 SystemText(text: "\(number)", fontstyle: .largeDemiBold)
-                Image("\(iconName)")
-                    .resizable()
-                    .frame(width: 15, height: 15)
+                if isSystem {
+                    Image(systemName: iconName)
+                } else {
+                    Image(iconName)
+                        .resizable()
+                        .frame(width: 15, height: 15)
+                }
             }
             SystemText(text: subheading, fontstyle: .medium)
         }
@@ -296,28 +320,12 @@ struct SettingsView: View {
     @EnvironmentObject var currentUserVM: CurrentUserViewModel
     @EnvironmentObject var userVM: UserViewModel
     
-    @State var showPreview = false
     @State var presentAlert = false
     
     var body: some View {
         ZStack {
             BGColor()
             VStack {
-                NavigationLink(
-                    destination: UserView(invitable: false, isPreview: true, show: $showPreview),
-                    label: {
-                        HStack {
-                            SystemText(text: "Preview Your Profile", fontstyle: .medium)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .padding()
-                        .background(Color("Neutral"))
-                        .cornerRadius(5)
-                    })
-                    .simultaneousGesture(TapGesture().onEnded {
-                        self.userVM.setInspectedUser(user: currentUserVM.currentUser)
-                    })
                 Spacer(minLength: 20)
                 Button(action: {
                     UserDefaults.standard.set(false, forKey: "isLoggedIn")
@@ -497,5 +505,38 @@ struct InProfileBioView: View {
             .animationsDisabled()
         }
         .cornerRadius(5)
+    }
+}
+
+struct SettingsIconView: View {
+    var body: some View {
+        VStack (spacing: 3) {
+            ZStack {
+                Rectangle()
+                    .foregroundColor(Color("Pink"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack {
+                    Circle()
+                        .foregroundColor(Color("Navy"))
+                        .frame(width: 10, height: 10)
+                        .padding(2)
+                    Spacer()
+                }
+            }
+            .clipShape(Capsule())
+            ZStack {
+                Rectangle()
+                    .foregroundColor(Color("Pink"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack {
+                    Spacer()
+                    Circle()
+                        .foregroundColor(Color("Navy"))
+                        .frame(width: 10, height: 10)
+                        .padding(2)
+                }
+            }
+            .clipShape(Capsule())
+        }
     }
 }

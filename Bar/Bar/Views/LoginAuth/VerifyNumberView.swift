@@ -20,6 +20,7 @@ struct VerifyNumberView: View {
     @Binding var ID: String
     @Binding var isShowingVerify: Bool
     
+    @State var numSteps: Int
     @State var phoneNumber: String
     @State var isShowingBuildProfile = false
     @State var vCode = ""
@@ -105,6 +106,7 @@ struct VerifyNumberView: View {
                                                 if doc.exists {
                                                     UserDefaults.standard.setValue(true, forKey: "isLoggedIn")
                                                     showsBarView.toggle()
+                                                    self.currentUserVM.getUser()
                                                 } else {
                                                     self.isShowingBuildProfile.toggle()
                                                 }
@@ -138,7 +140,7 @@ struct VerifyNumberView: View {
                 .cornerRadius(5)
                 .shadow(color: .black, radius: 20, y: 10)
                 Spacer()
-                RegistrationPaginationView(index: 1)
+                RegistrationPaginationView(numSteps: numSteps, index: 1)
             }
             .alert(isPresented: $alert) {
                 Alert(title: Text("Error"), message: Text(self.alertMessage), dismissButton: .default(Text("Got It")))

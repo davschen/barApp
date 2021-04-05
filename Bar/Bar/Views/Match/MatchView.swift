@@ -59,7 +59,7 @@ struct MatchView: View {
                 VStack {
                     // Start Your Conversation Button
                     Button {
-                        self.likerVM.match(matchToID: likerVM.matcher.id ?? "")
+                        self.likerVM.acceptMatch(matchToID: likerVM.matcher.id ?? "")
                         self.showChat.toggle()
                     } label: {
                         StandardButtonView(text: "Start Your Conversation")
@@ -68,8 +68,7 @@ struct MatchView: View {
                     
                     // Change Your Mind Button
                     Button {
-                        self.likerVM.declineMatcher(id: likerVM.matcher.id!)
-                        self.showMatchView.toggle()
+                        self.likerVM.declineMatcher(id: likerVM.matcher.id ?? "NOT-AN-ID")
                     } label: {
                         SystemText(text: "I've Changed My Mind", fontstyle: .regularBold)
                             .padding(.vertical, 10)
@@ -90,15 +89,8 @@ struct MatchView: View {
             .navigationBarTitle("")
         }
         .edgesIgnoringSafeArea(.all)
+        .onAppear {
+            
+        }
     }
 }
-
-struct MatchView_Previews: PreviewProvider {
-    @State static var matcher = TempUserLib().user1
-    @State static var currentUser = TempUserLib().user1
-    @State static var showMatchView = false
-    static var previews: some View {
-        MatchView(showMatchView: $showMatchView)
-    }
-}
-

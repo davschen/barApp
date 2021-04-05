@@ -11,6 +11,7 @@ import Firebase
 
 struct SignUpView: View {
     @Binding var isShowingSignUp: Bool
+    @Binding var numSteps: Int
     @State var isShowingVerify = false
     @State var countryCode = "1"
     @State var number = ""
@@ -93,7 +94,7 @@ struct SignUpView: View {
                         }
                     }
                     NavigationLink(
-                        destination: VerifyNumberView(ID: $ID, isShowingVerify: $isShowingVerify, phoneNumber: distillNumber()), isActive: $isShowingVerify,
+                        destination: VerifyNumberView(ID: $ID, isShowingVerify: $isShowingVerify, numSteps: numSteps, phoneNumber: distillNumber()), isActive: $isShowingVerify,
                         label: {
                             Button(action: {
                                 if hasValidEntry() {
@@ -122,7 +123,7 @@ struct SignUpView: View {
                 .cornerRadius(5)
                 .shadow(color: .black, radius: 20, y: 10)
                 Spacer()
-                RegistrationPaginationView(index: 0)
+                RegistrationPaginationView(numSteps: numSteps, index: 0)
             }
             .padding()
             .alert(isPresented: $alert) {
@@ -151,22 +152,14 @@ struct SignUpView: View {
 }
 
 struct RegistrationPaginationView: View {
+    let numSteps: Int
     let index: Int
     var body: some View {
         HStack {
-            Image(systemName: index == 0 ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
-            Image(systemName: index == 1 ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
-            Image(systemName: index == 2 ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
-            Image(systemName: index == 3 ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
-            Image(systemName: index == 4 ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
+            ForEach(0..<numSteps, id: \.self) { i in
+                Image(systemName: index == i ? "circle.fill" : "circle").resizable().frame(width: 10, height: 10)
+            }
         }
         .foregroundColor(Color("Pink"))
-    }
-}
-
-struct SignUpView_Previews: PreviewProvider {
-    @State static var isShowingSignUp = true
-    static var previews: some View {
-        SignUpView(isShowingSignUp: $isShowingSignUp)
     }
 }

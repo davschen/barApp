@@ -10,6 +10,8 @@ import SwiftUI
 
 struct LoginView: View {
     @State var isShowingSignUp = false
+    @State var numSteps = 0
+    
     var body: some View {
         ZStack {
             BGColor()
@@ -20,7 +22,7 @@ struct LoginView: View {
                         .frame(width: 100, height: 90)
                 }
                 .frame(height: UIScreen.main.bounds.height / 2)
-                NavigationLink(destination: SignUpView(isShowingSignUp: $isShowingSignUp), isActive: self.$isShowingSignUp) {
+                NavigationLink(destination: SignUpView(isShowingSignUp: $isShowingSignUp, numSteps: $numSteps), isActive: self.$isShowingSignUp) {
                     Text("Create Account")
                         .font(Font.custom("Avenir Next Demi Bold", size: 12))
                         .foregroundColor(.black)
@@ -29,7 +31,10 @@ struct LoginView: View {
                         .background(Color.white)
                         .clipShape(Capsule())
                 }
-                NavigationLink(destination: SignUpView(isShowingSignUp: $isShowingSignUp), isActive: self.$isShowingSignUp) {
+                .simultaneousGesture(TapGesture().onEnded{
+                    self.numSteps = 5
+                })
+                NavigationLink(destination: SignUpView(isShowingSignUp: $isShowingSignUp, numSteps: $numSteps), isActive: self.$isShowingSignUp) {
                     Text("Login")
                         .font(Font.custom("Avenir Next Demi Bold", size: 12))
                         .foregroundColor(.white)
@@ -38,6 +43,9 @@ struct LoginView: View {
                         .background(Color("Pink"))
                         .clipShape(Capsule())
                 }
+                .simultaneousGesture(TapGesture().onEnded{
+                    self.numSteps = 2
+                })
                 Text("By singing up for bar, you agree to our terms and conditions. Learn how we process your data in our Privacy and Cookies Policy")
                     .foregroundColor(.white)
                     .font(Font.custom("Avenir Next Demi Bold", size: 10))
